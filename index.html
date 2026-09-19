@@ -159,6 +159,11 @@
       <div id="progress-rows"></div>
     </section>
 
+    <section id="scr-library" hidden>
+      <h2>Библиотека · записи встреч</h2>
+      <div id="library"></div>
+    </section>
+
     <section id="scr-team" hidden>
       <h2>Команда потока</h2>
       <div id="team"></div>
@@ -167,6 +172,7 @@
 
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-scr="lessons"><span class="i">🗓️</span>Занятия</button>
+    <button class="tab" role="tab" aria-selected="false" data-scr="library"><span class="i">📚</span>Библиотека</button>
     <button class="tab" role="tab" aria-selected="false" data-scr="progress"><span class="i">📊</span>Прогресс</button>
     <button class="tab" role="tab" aria-selected="false" data-scr="team"><span class="i">👥</span>Команда</button>
   </div>
@@ -251,8 +257,7 @@
         if(att||done){ h += '<div class="row" style="margin-top:6px">'+(att?'<span class="chip ok">✓ Вы были</span> ':'')+(done?'<span class="chip ok">✓ Задание</span>':'')+'</div>'; }
         h += '<div class="row"><button class="btn primary" data-toggle="'+L.id+'" aria-expanded="false">Открыть материалы</button></div>';
         h += '<div class="cardbody mat" id="body-'+L.id+'" hidden>';
-        h += '<div class="row"><button class="btn" data-rec="'+L.id+'">▶ Запись встречи</button>'+
-             '<button class="btn" data-tetrad="'+L.id+'">📄 Тетрадь дня</button>'+
+        h += '<div class="row"><button class="btn" data-tetrad="'+L.id+'">📄 Тетрадь дня</button>'+
              (att? '<span class="chip ok">✓ Вы были</span>' : '') + '</div>';
         if(!att){
           h += '<div class="row"><input class="inp" placeholder="кодовое слово со встречи" data-code="'+L.id+'">'+
@@ -301,6 +306,18 @@
       d.innerHTML = '<div class="pt"><b>'+esc(L.topic)+'</b><span class="ps">'+tag+'</span></div>'+
                     '<div class="ps">'+(a?'✓ был':'· не отмечен')+' &nbsp;·&nbsp; '+(t?'✓ задание':'· нет задания')+'</div>'+
                     '<div class="bar"><span style="width:'+pct+'%"></span></div>';
+      host.appendChild(d);
+    });
+  }
+
+  function renderLibrary(){
+    var host = document.getElementById("library"); host.innerHTML = "";
+    var days = LESSONS.filter(function(L){return L.type==="day";});
+    days.forEach(function(L){
+      var d = document.createElement("div"); d.className="card";
+      d.innerHTML = '<div class="wk"><span class="w">запись встречи</span></div>'+
+                    '<h3>'+esc(L.topic)+'</h3>'+
+                    '<div class="row"><button class="btn primary" data-rec="'+L.id+'">▶ Смотреть запись</button></div>';
       host.appendChild(d);
     });
   }
@@ -388,10 +405,11 @@
     tab.addEventListener("click", function(){
       tabs.forEach(function(x){ x.setAttribute("aria-selected","false"); });
       tab.setAttribute("aria-selected","true");
-      ["lessons","progress","team"].forEach(function(s){
+      ["lessons","library","progress","team"].forEach(function(s){
         document.getElementById("scr-"+s).hidden = (s !== tab.getAttribute("data-scr"));
       });
       if(tab.getAttribute("data-scr")==="progress") renderProgress();
+      if(tab.getAttribute("data-scr")==="library") renderLibrary();
     });
   });
 
@@ -411,5 +429,5 @@
     try{ document.body.classList.add('in-tg'); }catch(e){}
     SIMDAY = 3;
   }
-  renderSim(); renderNotif(); renderLessons(); renderProgress(); renderTeam();
+  renderSim(); renderNotif(); renderLessons(); renderProgress(); renderLibrary(); renderTeam();
 </script>

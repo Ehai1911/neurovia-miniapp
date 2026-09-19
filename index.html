@@ -1,0 +1,365 @@
+<title>Мини-апп курса · демо</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --bg:#E7ECEA; --app:#FFFFFF; --app-2:#F1F6F4; --ink:#16211E; --ink-soft:#4A5A55; --ink-faint:#7E8E89;
+    --border:#E0E8E5; --border-2:#CFDAD6;
+    --accent:#158268; --accent-ink:#0E6852; --accent-soft:#E2F2EC;
+    --ok:#1E8A5A; --ok-bg:#E4F4EB; --amber:#9A6A12; --amber-bg:#F7EFDC;
+    --topbar:#12302A;
+    --shadow:0 1px 2px rgba(18,48,42,.05),0 10px 30px rgba(18,48,42,.10);
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --bg:#0B100F; --app:#161E1B; --app-2:#1E2825; --ink:#E7EEEB; --ink-soft:#A6B4AF; --ink-faint:#70807A;
+    --border:#28322E; --border-2:#38433E;
+    --accent:#4FB79A; --accent-ink:#8FD4C0; --accent-soft:#15332A;
+    --ok:#57B37E; --ok-bg:#15291D; --amber:#D69B54; --amber-bg:#2A2214;
+    --topbar:#0A1512;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.35);
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0B100F; --app:#161E1B; --app-2:#1E2825; --ink:#E7EEEB; --ink-soft:#A6B4AF; --ink-faint:#70807A;
+    --border:#28322E; --border-2:#38433E;
+    --accent:#4FB79A; --accent-ink:#8FD4C0; --accent-soft:#15332A;
+    --ok:#57B37E; --ok-bg:#15291D; --amber:#D69B54; --amber-bg:#2A2214;
+    --topbar:#0A1512;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;
+    font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.5;
+    -webkit-font-smoothing:antialiased;padding:22px 12px;}
+  .demonote{max-width:390px;margin:0 auto 12px;font-size:12.5px;color:var(--ink-soft);
+    background:var(--amber-bg);border:1px solid color-mix(in srgb,var(--amber) 30%,transparent);
+    border-radius:10px;padding:9px 12px;}
+  .demonote b{color:var(--ink);}
+
+  .phone{max-width:390px;margin:0 auto;background:var(--app);border-radius:22px;overflow:hidden;
+    box-shadow:var(--shadow);border:1px solid var(--border-2);display:flex;flex-direction:column;min-height:640px;}
+  .top{background:var(--topbar);color:#EAF4EF;padding:14px 16px;display:flex;align-items:center;gap:10px;}
+  .top .dot{width:30px;height:30px;border-radius:8px;background:#1E5648;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none;}
+  .top .tt{font-weight:600;font-size:15px;}
+  .top .ts{font-size:11.5px;color:#8FB6A8;}
+
+  main{flex:1;overflow-y:auto;padding:14px 14px 8px;}
+  h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin:2px 2px 12px;}
+
+  .card{background:var(--app);border:1px solid var(--border);border-radius:14px;padding:14px;margin:0 0 12px;box-shadow:0 1px 2px rgba(18,48,42,.04);}
+  .card.done{border-color:color-mix(in srgb,var(--ok) 34%,transparent);}
+  .wk{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 0 2px;}
+  .wk .w{font-size:12px;font-weight:600;color:var(--accent-ink);text-transform:uppercase;letter-spacing:.05em;}
+  .wk .date{font-size:12px;color:var(--ink-faint);}
+  .card h3{margin:2px 0 10px;font-size:16px;font-weight:600;letter-spacing:-.01em;}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;}
+
+  .btn{appearance:none;border:1px solid var(--border-2);background:var(--app-2);color:var(--ink);
+    font:inherit;font-size:13.5px;font-weight:500;padding:8px 13px;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;}
+  .btn:hover{border-color:var(--accent);}
+  a.btn{text-decoration:none;}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .inp{flex:1;min-width:120px;font:inherit;font-size:13.5px;padding:8px 11px;border:1px solid var(--border-2);
+    border-radius:9px;background:var(--app);color:var(--ink);}
+  .inp:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent);}
+  textarea.inp{width:100%;display:block;min-height:52px;resize:vertical;line-height:1.45;}
+  .qa{margin-top:10px;}
+  .qa .ql{font-size:13px;color:var(--ink);font-weight:500;margin:0 0 5px;display:block;}
+  .qa .ans{font-size:13px;color:var(--ink-soft);white-space:pre-wrap;background:var(--app-2);border-radius:8px;padding:7px 10px;}
+  .tasklabel{margin-top:13px;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--accent-ink);}
+  .sim{background:var(--app-2);border:1px dashed var(--border-2);border-radius:10px;padding:9px 11px;margin:0 0 10px;font-size:12px;color:var(--ink-soft);}
+  .sim .simrow{display:flex;gap:6px;margin-top:7px;}
+  .sim button{flex:1;padding:7px;border:1px solid var(--border-2);background:var(--app);border-radius:8px;font:inherit;font-size:13px;cursor:pointer;color:var(--ink);}
+  .sim button[aria-current="true"]{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .notif{display:flex;gap:9px;align-items:flex-start;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:10px;padding:10px 12px;margin:0 0 12px;font-size:13px;color:var(--ink);}
+  .notif .bell{font-size:16px;flex:none;line-height:1.3;}
+  .mat{margin-top:10px;border-top:1px solid var(--border);padding-top:10px;}
+  .mat h4{margin:12px 0 4px;font-size:14px;font-weight:600;color:var(--ink);}
+  .mat p{margin:4px 0;font-size:13.5px;color:var(--ink-soft);}
+  .mat ul{margin:4px 0;padding-left:18px;} .mat li{font-size:13.5px;color:var(--ink-soft);margin:3px 0;}
+  .video{position:relative;padding-top:56.25%;border-radius:10px;overflow:hidden;margin:4px 0 2px;background:#000;}
+  .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
+
+  .chip{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;}
+  .chip.ok{background:var(--ok-bg);color:var(--ok);}
+  .chip.wait{background:var(--app-2);color:var(--ink-faint);}
+  .hint{font-size:12px;color:var(--ink-faint);margin:8px 0 0;}
+  .err{font-size:12.5px;color:#C0483C;margin:6px 0 0;}
+  .lock{font-size:13px;color:var(--ink-faint);background:var(--app-2);border-radius:9px;padding:9px 11px;margin-top:8px;}
+
+  /* progress */
+  .stat{display:flex;gap:12px;margin:0 0 14px;}
+  .stat .box{flex:1;background:var(--app);border:1px solid var(--border);border-radius:14px;padding:14px;text-align:center;}
+  .stat .num{font-size:28px;font-weight:700;color:var(--accent-ink);line-height:1;}
+  .stat .lab{font-size:12px;color:var(--ink-soft);margin-top:6px;}
+  .bar{height:9px;border-radius:6px;background:var(--app-2);overflow:hidden;margin-top:8px;}
+  .bar>span{display:block;height:100%;background:var(--accent);border-radius:6px;transition:width .35s;}
+  .prow{background:var(--app);border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin:0 0 9px;}
+  .prow .pt{display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:3px;}
+  .prow .pt b{font-weight:600;}
+  .prow .ps{font-size:12px;color:var(--ink-faint);}
+
+  /* team */
+  .member{display:flex;align-items:center;gap:11px;background:var(--app);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin:0 0 9px;}
+  .ava{width:36px;height:36px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);
+    display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex:none;}
+  .member .mn{font-size:14px;font-weight:500;}
+  .member .mr{font-size:12px;color:var(--ink-faint);}
+  .role{margin-left:auto;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent-ink);}
+
+  /* tabs */
+  .tabs{display:flex;border-top:1px solid var(--border);background:var(--app);}
+  .tab{flex:1;appearance:none;border:none;background:none;cursor:pointer;padding:9px 4px 10px;
+    display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-faint);font:inherit;font-size:11px;}
+  .tab .i{font-size:19px;line-height:1;}
+  .tab[aria-selected="true"]{color:var(--accent-ink);font-weight:600;}
+  .tab:focus-visible{outline:2px solid var(--accent);outline-offset:-3px;}
+  .resetbar{max-width:390px;margin:12px auto 0;text-align:center;}
+  .resetbar button{font:inherit;font-size:12.5px;color:var(--ink-faint);background:none;border:none;cursor:pointer;text-decoration:underline;}
+</style>
+
+<div class="demonote">
+  <b>Демо: как Интенсив «Neurovia Sprint — От интереса к оплате» выглядел бы в Telegram-мини-аппе.</b> Программа, задания (по 3 вопроса на день) и квиз «Карта разрыва» — реальные, из Акселя. Данные хранятся только в этом браузере (имитация сервера). Кодовые слова для отметки (фича мини-аппа для живых встреч): <b>сценарий</b>, <b>переход</b>, <b>покупка</b>. Переключатель «Старт → День 1–3» под шапкой — это демо-промотка: показывает, как контент открывается постепенно (в жизни это происходит само по мере прохождения).
+</div>
+
+<div class="phone">
+  <div class="top">
+    <div class="dot">🚀</div>
+    <div><div class="tt">Neurovia Sprint</div><div class="ts">Интенсив в Telegram</div></div>
+  </div>
+
+  <main>
+    <section id="scr-lessons">
+      <h2>Занятия</h2>
+      <div id="sim"></div>
+      <div id="notif"></div>
+      <div id="lessons"></div>
+    </section>
+
+    <section id="scr-progress" hidden>
+      <h2>Мой прогресс</h2>
+      <div class="stat">
+        <div class="box"><div class="num" id="st-att">0/0</div><div class="lab">посещено</div></div>
+        <div class="box"><div class="num" id="st-hw">0/0</div><div class="lab">заданий выполнено</div></div>
+      </div>
+      <div id="progress-rows"></div>
+    </section>
+
+    <section id="scr-team" hidden>
+      <h2>Команда потока</h2>
+      <div id="team"></div>
+    </section>
+  </main>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-scr="lessons"><span class="i">🗓️</span>Занятия</button>
+    <button class="tab" role="tab" aria-selected="false" data-scr="progress"><span class="i">📊</span>Прогресс</button>
+    <button class="tab" role="tab" aria-selected="false" data-scr="team"><span class="i">👥</span>Команда</button>
+  </div>
+</div>
+
+<div class="resetbar"><button id="reset">сбросить демо-данные</button></div>
+
+<script>
+  var LESSONS = [
+    {id:0, type:"intro",    date:"",                  topic:"СТАРТ. Добро пожаловать в спринт"},
+    {id:1, type:"day",      date:"",                  topic:"День 1. Клиентский сценарий", code:"сценарий",
+      desc:"Один реальный клиент: кто он, что случилось, что беспокоит. Тетрадь — 6 вопросов, пометки Ц/Ф/Г, итоговый абзац.",
+      questions:["Кто твой клиент — одним предложением?","Какая одна его фраза точнее всего показывает, что его беспокоит?","Что нового ты понял(а) про этого клиента?"]},
+    {id:2, type:"day",      date:"",                  topic:"День 2. Оплачиваемый переход", code:"переход",
+      desc:"За что клиент готов платить: из точки А в точку Б. Формула «Я помогаю [кому] перейти из [А] в [Б]…».",
+      questions:["Из какой точки А в какую точку Б переходит твой клиент?","За что именно он платит — своими словами, без названий модулей?","Какой нежелательный сценарий он хочет избежать больше всего?"]},
+    {id:3, type:"day",      date:"",                  topic:"День 3. Путь к покупке",       code:"покупка", quiz:true,
+      desc:"Путь клиента к покупке и где он обрывается: 5 шагов, один главный разрыв + действие на 72 часа.",
+      questions:["В чём твой главный разрыв на пути от интереса к покупке?","Чем ты подтверждаешь, что разрыв именно там, а не в другом месте?","Какое одно действие сделаешь в ближайшие 72 часа?"]},
+    {id:4, type:"feedback", date:"",                  topic:"Обратная связь"},
+    {id:5, type:"locked",   date:"",                  topic:"Как применить полученные баллы"}
+  ];
+  function getL(id){ for(var i=0;i<LESSONS.length;i++){ if(LESSONS[i].id===id) return LESSONS[i]; } return null; }
+  var TEAM = [
+    {n:"Айгерим", r:"куратор"}, {n:"Данияр", r:"участник"},
+    {n:"Сауле", r:"участник"}, {n:"Мадина", r:"участник"}, {n:"Ержан", r:"участник"}
+  ];
+  var KEY = "nvl_miniapp_demo_v1";
+
+  function load(){ var s; try{ s=JSON.parse(localStorage.getItem(KEY))||{}; }catch(e){ s={}; } s.att=s.att||{}; s.task=s.task||{}; s.ans=s.ans||{}; return s; }
+  function save(s){ try{ localStorage.setItem(KEY, JSON.stringify(s)); }catch(e){} }
+  var state = load();
+  var SIMDAY = 0;
+  function esc(x){ return String(x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  var LABELS = {intro:"старт", day:"занятие", feedback:"обратная связь", locked:"после интенсива"};
+
+  function renderLessons(){
+    var host = document.getElementById("lessons"); host.innerHTML = "";
+    LESSONS.forEach(function(L){
+      var future = (L.type==="day" && L.id>SIMDAY) || (L.type==="feedback" && SIMDAY<3);
+      if(future){
+        var cf = document.createElement("div"); cf.className="card";
+        var openTxt = (L.type==="day") ? ("Откроется после завершения Дня "+(L.id-1)) : "Откроется после завершения Дня 3";
+        cf.innerHTML = '<div class="wk"><span class="w">'+LABELS[L.type]+'</span></div>'+
+          '<h3>'+esc(L.topic)+'</h3>'+
+          '<div class="lock">🔒 '+esc(openTxt)+' — бот пришлёт уведомление, когда откроется.</div>';
+        host.appendChild(cf); return;
+      }
+      var att = !!state.att[L.id], done = !!state.task[L.id], ans = state.ans[L.id] || [];
+      var c = document.createElement("div");
+      c.className = "card" + ((L.type==="day" && (att||done))?" done":"");
+      var h = '<div class="wk"><span class="w">'+LABELS[L.type]+'</span>'+
+              (L.date? '<span class="date">'+esc(L.date)+'</span>':'')+'</div>'+
+              '<h3>'+esc(L.topic)+'</h3>';
+
+      if(L.type==="intro"){
+        h += '<p class="hint">Знакомство со спринтом: как всё устроено, ссылки на встречу и что подготовить.</p>'+
+             '<div class="row"><button class="btn primary" data-info="1" aria-expanded="false">Открыть материалы</button></div>'+
+             '<div id="startmat" class="mat" hidden>'+
+               '<h4>Видео-приветствие</h4>'+
+               '<div class="video"><iframe src="https://v.xlsite.ai/v/BK4pTHqKrEWV6YB9F-zXPA?showTitle=true&showControls=true&muted=true&autoplay=false" allow="accelerometer; fullscreen; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe></div>'+
+               '<h4>Как проходит спринт</h4>'+
+               '<ul><li>📅 3 дня онлайн, в 19:00, в Zoom.</li>'+
+               '<li>🎥 Актуальные даты — на лендинге.</li>'+
+               '<li>💬 Ссылка на Zoom приходит в WhatsApp-группу — обязательно вступи.</li></ul>'+
+               '<div class="row"><a class="btn" href="https://chat.whatsapp.com/I0nfafcih190tR8AnIP4kF?s=cl&p=a&ilr=0" target="_blank" rel="noopener">Группа WhatsApp</a>'+
+               '<a class="btn" href="https://us06web.zoom.us/j/9678068960?pwd=jbtLhLedwugc2SHDFMybzBAJAxMh9g.1" target="_blank" rel="noopener">Подключиться в Zoom</a></div>'+
+               '<h4>Важно: тетради</h4>'+
+               '<ul><li>Три тетради связаны — одна вытекает из другой.</li>'+
+               '<li>Каждую скачай и заполни сам(а) — это личный рабочий документ.</li>'+
+               '<li>На встречу приходи с заполненными тетрадями.</li></ul>'+
+               '<h4>Баллы за задания</h4>'+
+               '<p>За каждое выполненное задание — баллы. Действуют 7 дней, потом сгорают.</p>'+
+               '<h4>Ещё пригодится</h4>'+
+               '<ul><li>📌 Закрепи бота в Telegram, чтобы не потерять.</li></ul>'+
+             '</div>';
+      }
+      else if(L.type==="day"){
+        if(L.desc){ h += '<p class="hint">'+esc(L.desc)+'</p>'; }
+        h += '<div class="row"><button class="btn" data-rec="'+L.id+'">▶ Запись встречи</button>'+
+             '<button class="btn" data-tetrad="'+L.id+'">📄 Тетрадь дня</button>'+
+             (att? '<span class="chip ok">✓ Вы были</span>' : '') + '</div>';
+        if(!att){
+          h += '<div class="row"><input class="inp" placeholder="кодовое слово со встречи" data-code="'+L.id+'">'+
+               '<button class="btn primary" data-mark="'+L.id+'">Отметиться</button></div>'+
+               '<div class="err" id="err-'+L.id+'" hidden></div>';
+        }
+        h += '<div class="tasklabel">Задание дня · 3 вопроса</div>';
+        if(done){
+          h += '<div class="row" style="margin-top:6px"><span class="chip ok">✓ Задание выполнено</span> <button class="btn" data-taskedit="'+L.id+'">изменить</button></div>';
+          L.questions.forEach(function(q,i){
+            h += '<div class="qa"><span class="ql">'+esc(q)+'</span><div class="ans">'+esc(ans[i]||'')+'</div></div>';
+          });
+        } else {
+          L.questions.forEach(function(q,i){
+            h += '<div class="qa"><label class="ql">'+esc(q)+'</label><textarea class="inp" data-ans="'+L.id+'-'+i+'" placeholder="ваш ответ">'+esc(ans[i]||'')+'</textarea></div>';
+          });
+          h += '<div class="row" style="margin-top:9px"><button class="btn primary" data-savetask="'+L.id+'">Сохранить ответы</button></div>'+
+               '<div class="err" id="terr-'+L.id+'" hidden></div>';
+        }
+        if(L.quiz){ h += '<div class="row" style="margin-top:12px"><button class="btn" data-quiz="1">🧭 Пройти квиз «Карта разрыва»</button></div>'; }
+      }
+      else if(L.type==="feedback"){
+        h += '<p class="hint">Поделитесь впечатлениями — за обратную связь начисляются баллы.</p>'+
+             '<div class="row"><button class="btn primary" data-fb="1">Оставить отзыв</button></div>';
+      }
+      else if(L.type==="locked"){
+        h += '<div class="lock">🔒 Откроется после завершения интенсива. Здесь будет: как применить полученные баллы.</div>';
+      }
+      c.innerHTML = h; host.appendChild(c);
+    });
+  }
+
+  function renderProgress(){
+    var days = LESSONS.filter(function(L){return L.type==="day";});
+    var att = days.filter(function(L){return state.att[L.id];}).length;
+    var tk  = days.filter(function(L){return state.task[L.id];}).length;
+    document.getElementById("st-att").textContent = att+"/"+days.length;
+    document.getElementById("st-hw").textContent  = tk+"/"+days.length;
+    var host = document.getElementById("progress-rows"); host.innerHTML = "";
+    days.forEach(function(L){
+      var a = !!state.att[L.id], t = !!state.task[L.id];
+      var pct = (a?50:0)+(t?50:0);
+      var tag = a&&t?"пройдено":(a||t?"частично":"пропущено");
+      var d = document.createElement("div"); d.className="prow";
+      d.innerHTML = '<div class="pt"><b>'+esc(L.topic)+'</b><span class="ps">'+tag+'</span></div>'+
+                    '<div class="ps">'+(a?'✓ был':'· не отмечен')+' &nbsp;·&nbsp; '+(t?'✓ задание':'· нет задания')+'</div>'+
+                    '<div class="bar"><span style="width:'+pct+'%"></span></div>';
+      host.appendChild(d);
+    });
+  }
+
+  function renderTeam(){
+    var host = document.getElementById("team"); host.innerHTML = "";
+    TEAM.forEach(function(m){
+      var d = document.createElement("div"); d.className="member";
+      d.innerHTML = '<div class="ava">'+esc(m.n.charAt(0))+'</div>'+
+                    '<div><div class="mn">'+esc(m.n)+'</div></div>'+
+                    '<span class="role">'+esc(m.r)+'</span>';
+      host.appendChild(d);
+    });
+    var add = document.createElement("button"); add.className="btn"; add.style.width="100%"; add.textContent="+ Добавить участника";
+    add.onclick=function(){ alert("В демо добавление отключено. В рабочей версии куратор добавляет участников по нику или ссылке-приглашению."); };
+    host.appendChild(add);
+  }
+
+  function renderSim(){
+    var el = document.getElementById("sim");
+    var b = "";
+    for(var d=0; d<=3; d++){ b += '<button data-sim="'+d+'"'+(SIMDAY===d?' aria-current="true"':'')+'>'+(d===0?'Старт':'День '+d)+'</button>'; }
+    el.innerHTML = '<div class="simrow">'+b+'</div>';
+  }
+  function renderNotif(){
+    var el = document.getElementById("notif"); var L = getL(SIMDAY);
+    var tail = (SIMDAY===0) ? 'Загляни — внутри материалы спринта.' : 'Загляни — задание уже ждёт.';
+    el.innerHTML = '<span class="bell">🔔</span><div><b>Уведомление от бота:</b> открыт «'+esc(L.topic)+'». '+tail+'</div>';
+  }
+
+  document.addEventListener("click", function(e){
+    var t = e.target.closest("button"); if(!t) return;
+    var id;
+    if(t.getAttribute("data-sim")){ SIMDAY=+t.getAttribute("data-sim"); renderSim(); renderNotif(); renderLessons(); renderProgress(); return; }
+    if((id=t.getAttribute("data-mark"))){
+      id=+id; var L=LESSONS.filter(function(x){return x.id===id;})[0];
+      var inp=document.querySelector('[data-code="'+id+'"]'); var err=document.getElementById("err-"+id);
+      var val=(inp.value||"").trim().toLowerCase();
+      if(!val){ err.textContent="Введите кодовое слово."; err.hidden=false; return; }
+      if(val!==L.code){ err.textContent="Неверное слово. Его называют в конце занятия."; err.hidden=false; return; }
+      state.att[id]=true; save(state); renderLessons(); renderProgress();
+    }
+    else if((id=t.getAttribute("data-savetask"))){
+      id=+id; var L2=getL(id); var err2=document.getElementById("terr-"+id); var vals=[]; var bad=false;
+      for(var i=0;i<L2.questions.length;i++){
+        var ta=document.querySelector('[data-ans="'+id+'-'+i+'"]'); var v=(ta && ta.value||"").trim();
+        if(!v){ bad=true; if(ta) ta.style.borderColor="#C0483C"; }
+        vals.push(v);
+      }
+      if(bad){ err2.textContent="Ответьте на все три вопроса."; err2.hidden=false; return; }
+      state.ans[id]=vals; state.task[id]=true; save(state); renderLessons(); renderProgress();
+    }
+    else if((id=t.getAttribute("data-taskedit"))){ id=+id; state.task[id]=false; save(state); renderLessons(); renderProgress(); }
+    else if((id=t.getAttribute("data-rec"))){ alert("В демо запись не подключена. В рабочей версии откроется видео встречи с Google Диска."); }
+    else if(t.getAttribute("data-tetrad")){ alert("В демо тетрадь не подключена. В рабочей версии откроется тетрадь дня (ссылка/файл)."); }
+    else if(t.getAttribute("data-quiz")){ alert("В демо квиз не подключён. В рабочей версии откроется квиз «Карта разрыва» — 22 вопроса."); }
+    else if(t.getAttribute("data-info")){ var m=document.getElementById("startmat"); if(m){ m.hidden=!m.hidden; t.textContent=m.hidden?"Открыть материалы":"Свернуть материалы"; t.setAttribute("aria-expanded", m.hidden?"false":"true"); } return; }
+    else if(t.getAttribute("data-video")){ alert("В демо видео не подключено. В рабочей версии здесь будет видео-приветствие."); return; }
+    else if((id=t.getAttribute("data-link"))){ alert(id==="wa" ? "В демо ссылка скрыта. В рабочей версии откроется WhatsApp-группа потока." : "В демо ссылка скрыта. В рабочей версии откроется Zoom-встреча."); return; }
+    else if(t.getAttribute("data-fb")){ alert("В демо форма отзыва отключена. В рабочей версии здесь оставляют обратную связь и получают баллы."); }
+  });
+
+  var tabs = document.querySelectorAll(".tab");
+  tabs.forEach(function(tab){
+    tab.addEventListener("click", function(){
+      tabs.forEach(function(x){ x.setAttribute("aria-selected","false"); });
+      tab.setAttribute("aria-selected","true");
+      ["lessons","progress","team"].forEach(function(s){
+        document.getElementById("scr-"+s).hidden = (s !== tab.getAttribute("data-scr"));
+      });
+      if(tab.getAttribute("data-scr")==="progress") renderProgress();
+    });
+  });
+
+  document.getElementById("reset").addEventListener("click", function(){
+    state={att:{},task:{},ans:{}}; save(state); renderLessons(); renderProgress();
+  });
+
+  renderSim(); renderNotif(); renderLessons(); renderProgress(); renderTeam();
+</script>

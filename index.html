@@ -82,7 +82,8 @@
   .mat h4{margin:12px 0 4px;font-size:14px;font-weight:600;color:var(--ink);}
   .mat p{margin:4px 0;font-size:13.5px;color:var(--ink-soft);}
   .mat ul{margin:4px 0;padding-left:18px;} .mat li{font-size:13.5px;color:var(--ink-soft);margin:3px 0;}
-  #lessons.focus-start > .card:not(:first-child){display:none;}
+  #lessons.focus > .card:not(.active){display:none;}
+  .cardbody{margin-top:2px;}
   .video{position:relative;padding-top:56.25%;border-radius:10px;overflow:hidden;margin:4px 0 2px;background:#000;}
   .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
 
@@ -225,8 +226,8 @@
 
       if(L.type==="intro"){
         h += '<p class="hint">Знакомство со спринтом: как всё устроено, ссылки на встречу и что подготовить.</p>'+
-             '<div class="row"><button class="btn primary" data-info="1" aria-expanded="false">Открыть материалы</button></div>'+
-             '<div id="startmat" class="mat" hidden>'+
+             '<div class="row"><button class="btn primary" data-toggle="0" aria-expanded="false">Открыть материалы</button></div>'+
+             '<div class="cardbody mat" id="body-0" hidden>'+
                '<h4>Видео-приветствие</h4>'+
                '<div class="video"><iframe src="https://v.xlsite.ai/v/BK4pTHqKrEWV6YB9F-zXPA?showTitle=true&showControls=true&muted=true&autoplay=false" allow="accelerometer; fullscreen; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe></div>'+
                '<h4>Как проходит спринт</h4>'+
@@ -247,6 +248,9 @@
       }
       else if(L.type==="day"){
         if(L.desc){ h += '<p class="hint">'+esc(L.desc)+'</p>'; }
+        if(att||done){ h += '<div class="row" style="margin-top:6px">'+(att?'<span class="chip ok">✓ Вы были</span> ':'')+(done?'<span class="chip ok">✓ Задание</span>':'')+'</div>'; }
+        h += '<div class="row"><button class="btn primary" data-toggle="'+L.id+'" aria-expanded="false">Открыть материалы</button></div>';
+        h += '<div class="cardbody mat" id="body-'+L.id+'" hidden>';
         h += '<div class="row"><button class="btn" data-rec="'+L.id+'">▶ Запись встречи</button>'+
              '<button class="btn" data-tetrad="'+L.id+'">📄 Тетрадь дня</button>'+
              (att? '<span class="chip ok">✓ Вы были</span>' : '') + '</div>';
@@ -269,6 +273,7 @@
                '<div class="err" id="terr-'+L.id+'" hidden></div>';
         }
         if(L.quiz){ h += '<div class="row" style="margin-top:12px"><button class="btn" data-quiz="1">🧭 Пройти квиз «Карта разрыва»</button></div>'; }
+        h += '</div>';
       }
       else if(L.type==="feedback"){
         h += '<p class="hint">Поделитесь впечатлениями — за обратную связь начисляются баллы.</p>'+
@@ -352,7 +357,27 @@
     else if((id=t.getAttribute("data-rec"))){ alert("В демо запись не подключена. В рабочей версии откроется видео встречи с Google Диска."); }
     else if(t.getAttribute("data-tetrad")){ alert("В демо тетрадь не подключена. В рабочей версии откроется тетрадь дня (ссылка/файл)."); }
     else if(t.getAttribute("data-quiz")){ alert("В демо квиз не подключён. В рабочей версии откроется квиз «Карта разрыва» — 22 вопроса."); }
-    else if(t.getAttribute("data-info")){ var m=document.getElementById("startmat"); if(m){ m.hidden=!m.hidden; t.textContent=m.hidden?"Открыть материалы":"Свернуть материалы"; t.setAttribute("aria-expanded", m.hidden?"false":"true"); var le=document.getElementById("lessons"); if(le){ le.classList.toggle("focus-start", !m.hidden); } if(!m.hidden){ var mn=document.querySelector("main"); if(mn) mn.scrollTop=0; } } return; }
+    else if(t.getAttribute("data-toggle")!==null){
+      var tid=t.getAttribute("data-toggle"); var m=document.getElementById("body-"+tid);
+      if(m){
+        m.hidden=!m.hidden;
+        t.textContent=m.hidden?"Открыть материалы":"Свернуть материалы";
+        t.setAttribute("aria-expanded", m.hidden?"false":"true");
+        var le=document.getElementById("lessons"); var card=t.closest(".card");
+        if(le){
+          if(!m.hidden){
+            Array.prototype.forEach.call(le.children, function(c){ c.classList.remove("active"); });
+            if(card) card.classList.add("active");
+            le.classList.add("focus");
+            var mn=document.querySelector("main"); if(mn) mn.scrollTop=0;
+          } else {
+            if(card) card.classList.remove("active");
+            le.classList.remove("focus");
+          }
+        }
+      }
+      return;
+    }
     else if(t.getAttribute("data-video")){ alert("В демо видео не подключено. В рабочей версии здесь будет видео-приветствие."); return; }
     else if((id=t.getAttribute("data-link"))){ alert(id==="wa" ? "В демо ссылка скрыта. В рабочей версии откроется WhatsApp-группа потока." : "В демо ссылка скрыта. В рабочей версии откроется Zoom-встреча."); return; }
     else if(t.getAttribute("data-fb")){ alert("В демо форма отзыва отключена. В рабочей версии здесь оставляют обратную связь и получают баллы."); }

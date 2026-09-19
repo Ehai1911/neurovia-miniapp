@@ -117,6 +117,9 @@
   .tab:focus-visible{outline:2px solid var(--accent);outline-offset:-3px;}
   .resetbar{max-width:390px;margin:12px auto 0;text-align:center;}
   .resetbar button{font:inherit;font-size:12.5px;color:var(--ink-faint);background:none;border:none;cursor:pointer;text-decoration:underline;}
+  body.in-tg .demonote, body.in-tg #sim, body.in-tg #notif{display:none;}
+  body.in-tg{padding-top:0;}
+  body.in-tg .phone{box-shadow:none;border:none;border-radius:0;max-width:none;min-height:auto;}
 </style>
 
 <div class="demonote">
@@ -161,6 +164,7 @@
 
 <div class="resetbar"><button id="reset">сбросить демо-данные</button></div>
 
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
   var LESSONS = [
     {id:0, type:"intro",    date:"",                  topic:"СТАРТ. Добро пожаловать в спринт"},
@@ -197,7 +201,7 @@
       var future = (L.type==="day" && L.id>SIMDAY) || (L.type==="feedback" && SIMDAY<3);
       if(future){
         var cf = document.createElement("div"); cf.className="card";
-        var openTxt = (L.type==="day") ? ("Откроется после завершения Дня "+(L.id-1)) : "Откроется после завершения Дня 3";
+        var openTxt = (L.type==="day") ? ((L.id-1>=1) ? ("Откроется после завершения Дня "+(L.id-1)) : "Откроется после Старта") : "Откроется после завершения Дня 3";
         cf.innerHTML = '<div class="wk"><span class="w">'+LABELS[L.type]+'</span></div>'+
           '<h3>'+esc(L.topic)+'</h3>'+
           '<div class="lock">🔒 '+esc(openTxt)+' — бот пришлёт уведомление, когда откроется.</div>';
@@ -361,5 +365,17 @@
     state={att:{},task:{},ans:{}}; save(state); renderLessons(); renderProgress();
   });
 
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if(tg){
+    try{ tg.ready(); tg.expand(); }catch(e){}
+    try{ document.documentElement.setAttribute('data-theme', tg.colorScheme==='dark'?'dark':'light'); }catch(e){}
+    var tp = tg.themeParams || {}; var rs = document.documentElement.style;
+    function setv(n,v){ if(v) rs.setProperty(n,v); }
+    setv('--bg', tp.bg_color); setv('--app', tp.section_bg_color||tp.bg_color); setv('--app-2', tp.secondary_bg_color||tp.bg_color);
+    setv('--ink', tp.text_color); setv('--ink-soft', tp.subtitle_text_color||tp.hint_color); setv('--ink-faint', tp.hint_color||tp.subtitle_text_color);
+    setv('--accent', tp.button_color); setv('--accent-ink', tp.accent_text_color||tp.link_color||tp.button_color);
+    try{ document.body.classList.add('in-tg'); }catch(e){}
+    SIMDAY = 3;
+  }
   renderSim(); renderNotif(); renderLessons(); renderProgress(); renderTeam();
 </script>

@@ -82,6 +82,7 @@
   .mat h4{margin:12px 0 4px;font-size:14px;font-weight:600;color:var(--ink);}
   .mat p{margin:4px 0;font-size:13.5px;color:var(--ink-soft);}
   .mat ul{margin:4px 0;padding-left:18px;} .mat li{font-size:13.5px;color:var(--ink-soft);margin:3px 0;}
+  #lessons.focus-start > .card:not(:first-child){display:none;}
   .video{position:relative;padding-top:56.25%;border-radius:10px;overflow:hidden;margin:4px 0 2px;background:#000;}
   .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
 
@@ -351,7 +352,7 @@
     else if((id=t.getAttribute("data-rec"))){ alert("В демо запись не подключена. В рабочей версии откроется видео встречи с Google Диска."); }
     else if(t.getAttribute("data-tetrad")){ alert("В демо тетрадь не подключена. В рабочей версии откроется тетрадь дня (ссылка/файл)."); }
     else if(t.getAttribute("data-quiz")){ alert("В демо квиз не подключён. В рабочей версии откроется квиз «Карта разрыва» — 22 вопроса."); }
-    else if(t.getAttribute("data-info")){ var m=document.getElementById("startmat"); if(m){ m.hidden=!m.hidden; t.textContent=m.hidden?"Открыть материалы":"Свернуть материалы"; t.setAttribute("aria-expanded", m.hidden?"false":"true"); } return; }
+    else if(t.getAttribute("data-info")){ var m=document.getElementById("startmat"); if(m){ m.hidden=!m.hidden; t.textContent=m.hidden?"Открыть материалы":"Свернуть материалы"; t.setAttribute("aria-expanded", m.hidden?"false":"true"); var le=document.getElementById("lessons"); if(le){ le.classList.toggle("focus-start", !m.hidden); } if(!m.hidden){ var mn=document.querySelector("main"); if(mn) mn.scrollTop=0; } } return; }
     else if(t.getAttribute("data-video")){ alert("В демо видео не подключено. В рабочей версии здесь будет видео-приветствие."); return; }
     else if((id=t.getAttribute("data-link"))){ alert(id==="wa" ? "В демо ссылка скрыта. В рабочей версии откроется WhatsApp-группа потока." : "В демо ссылка скрыта. В рабочей версии откроется Zoom-встреча."); return; }
     else if(t.getAttribute("data-fb")){ alert("В демо форма отзыва отключена. В рабочей версии здесь оставляют обратную связь и получают баллы."); }

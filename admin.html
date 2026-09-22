@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Кабинет куратора</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --bg:#F4F8F6; --app:#FFFFFF; --app-2:#EDF1F5; --ink:#16211E; --ink-soft:#4A5A55; --ink-faint:#7E8C88;
+    --border:#DCE6E3; --border-2:#CFDAD6; --accent:#158268; --accent-ink:#0E6852; --accent-soft:#E2F2EC;
+    --ok:#1E8A5A; --ok-bg:#E4F4EB; --amber:#9A6A12; --amber-bg:#F7EFDC; --topbar:#12302A;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --bg:#0E1513; --app:#18211E; --app-2:#212A27; --ink:#E7EEEB; --ink-soft:#A7B5B0; --ink-faint:#74807A;
+    --border:#28322E; --border-2:#38433E; --accent:#4FB79A; --accent-ink:#8FD4C0; --accent-soft:#15332A;
+    --ok:#57B37E; --ok-bg:#15291D; --amber:#D69B54; --amber-bg:#2A2214; --topbar:#0A1512;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0E1513; --app:#18211E; --app-2:#212A27; --ink:#E7EEEB; --ink-soft:#A7B5B0; --ink-faint:#74807A;
+    --border:#28322E; --border-2:#38433E; --accent:#4FB79A; --accent-ink:#8FD4C0; --accent-soft:#15332A;
+    --ok:#57B37E; --ok-bg:#15291D; --amber:#D69B54; --amber-bg:#2A2214; --topbar:#0A1512;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;line-height:1.5;}
+  .top{background:var(--topbar);color:#EAF4EF;padding:14px 16px;}
+  .top .tt{font-weight:600;font-size:16px;}
+  .top .ts{font-size:12px;color:#8FB6A8;}
+  main{padding:14px;max-width:720px;margin:0 auto;}
+  .stat{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+  .stat .box{background:var(--app);border:1px solid var(--border);border-radius:12px;padding:10px 6px;text-align:center;}
+  .stat .num{font-size:22px;font-weight:700;color:var(--accent-ink);}
+  .stat .lab{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+  h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin:6px 2px 10px;}
+  .row{background:var(--app);border:1px solid var(--border);border-radius:12px;padding:12px 13px;margin-bottom:9px;cursor:pointer;display:flex;align-items:center;gap:10px;}
+  .row:hover{border-color:var(--accent);}
+  .ava{width:34px;height:34px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-weight:600;flex:none;}
+  .row .nm{font-weight:500;font-size:14.5px;}
+  .row .sub{font-size:12px;color:var(--ink-faint);margin-top:2px;}
+  .row .pr{margin-left:auto;text-align:right;}
+  .row .pr b{font-size:15px;color:var(--accent-ink);}
+  .chip{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;margin-left:4px;}
+  .c-ok{background:var(--ok-bg);color:var(--ok);} .c-amber{background:var(--amber-bg);color:var(--amber);}
+  .bar{height:6px;border-radius:4px;background:var(--app-2);overflow:hidden;margin-top:4px;width:80px;margin-left:auto;}
+  .bar>span{display:block;height:100%;background:var(--accent);}
+  .back{background:none;border:none;color:var(--accent-ink);font:inherit;font-size:14px;cursor:pointer;padding:8px 0;}
+  .card{background:var(--app);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:11px;}
+  .card h3{margin:0 0 4px;font-size:15px;}
+  .qa{margin-top:9px;} .qa .q{font-size:13px;color:var(--ink);font-weight:500;} .qa .a{font-size:13px;color:var(--ink-soft);background:var(--app-2);border-radius:8px;padding:7px 10px;margin-top:3px;white-space:pre-wrap;}
+  .flags{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;}
+  .btn{appearance:none;border:1px solid var(--border-2);background:var(--app-2);color:var(--ink);font:inherit;font-size:13px;padding:7px 12px;border-radius:9px;cursor:pointer;}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .muted{color:var(--ink-faint);font-size:13px;}
+  .err{color:#C0483C;font-size:13px;padding:10px;}
+</style>
+</head>
+<body>
+  <div class="top"><div class="tt">Кабинет куратора</div><div class="ts" id="sub">загрузка…</div></div>
+  <main>
+    <div id="list"></div>
+    <div id="detail" hidden></div>
+    <div id="err" class="err" hidden></div>
+  </main>
+<script>
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) { try { tg.ready(); tg.expand(); document.documentElement.setAttribute('data-theme', tg.colorScheme === 'dark' ? 'dark' : 'light'); var tp=tg.themeParams||{}; var rs=document.documentElement.style; function sv(n,v){if(v)rs.setProperty(n,v);} sv('--bg',tp.bg_color);sv('--app',tp.section_bg_color||tp.bg_color);sv('--app-2',tp.secondary_bg_color||tp.bg_color);sv('--ink',tp.text_color);sv('--ink-soft',tp.subtitle_text_color||tp.hint_color);sv('--ink-faint',tp.hint_color);sv('--accent',tp.button_color);sv('--accent-ink',tp.accent_text_color||tp.link_color||tp.button_color); } catch(e){} }
+
+  var U = new URL(location.href);
+  var DEV = U.searchParams.get('dev') === '1';
+  var TG = U.searchParams.get('tg') || '999001';
+  var initData = (tg && tg.initData) || '';
+  function esc(x){ return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function apiUrl(path, params){ var u=new URL(path, location.origin); if(DEV){u.searchParams.set('dev','1');u.searchParams.set('tg',TG);u.searchParams.set('admin','1');} if(params)Object.keys(params).forEach(function(k){u.searchParams.set(k,params[k]);}); return u.toString(); }
+  function hdr(){ return initData ? {'x-init-data':initData} : {}; }
+  async function apiGet(path, params){ var r=await fetch(apiUrl(path,params),{headers:hdr()}); return r.json(); }
+  async function apiPost(path, body){ var r=await fetch(apiUrl(path),{method:'POST',headers:Object.assign({'Content-Type':'application/json'},hdr()),body:JSON.stringify(body||{})}); return r.json(); }
+
+  function showErr(m){ var el=document.getElementById('err'); el.textContent=m; el.hidden=false; }
+
+  async function loadList(){
+    document.getElementById('detail').hidden=true;
+    var el=document.getElementById('list'); el.hidden=false;
+    var j=await apiGet('/api/admin/participants');
+    if(!j.ok){ showErr('Доступ только для куратора. '+(j.error||'')); return; }
+    document.getElementById('sub').textContent=(j.cohort&&j.cohort.title)||'';
+    var s=j.summary;
+    var h='<div class="stat">'+
+      tile(s.total,'участников')+tile(s.completed,'завершили')+tile(s.avgProgress+'%','сред. прогресс')+tile(s.tasksDone+'/'+s.tasksTotal,'задания')+
+      '</div><h2>Участники</h2>';
+    var studs=j.participants.filter(function(p){return p.role==='student';});
+    if(studs.length===0) h+='<div class="muted">Пока никто не зашёл.</div>';
+    studs.forEach(function(p){
+      h+='<div class="row" onclick="openDetail(\''+p.enrollment_id+'\')">'+
+        '<div class="ava">'+esc((p.name||'?').charAt(0))+'</div>'+
+        '<div><div class="nm">'+esc(p.name)+'</div><div class="sub">был '+p.attended+'/'+p.dayCount+' · задания '+p.done+'/'+p.dayCount+
+          (p.feedback?' · <span class="chip c-ok">отзыв</span>':'')+(p.discount?' · <span class="chip c-amber">-'+p.discount.percent+'%</span>':'')+'</div></div>'+
+        '<div class="pr"><b>'+p.progress+'%</b><div class="bar"><span style="width:'+p.progress+'%"></span></div></div>'+
+      '</div>';
+    });
+    el.innerHTML=h;
+  }
+  function tile(n,l){ return '<div class="box"><div class="num">'+n+'</div><div class="lab">'+l+'</div></div>'; }
+
+  window.openDetail = async function(id){
+    var list=document.getElementById('list'); list.hidden=true;
+    var el=document.getElementById('detail'); el.hidden=false; el.innerHTML='<div class="muted">Загрузка…</div>';
+    var j=await apiGet('/api/admin/participant',{enrollment_id:id});
+    if(!j.ok){ el.innerHTML='<button class="back" onclick="loadList()">← назад</button><div class="err">'+esc(j.error)+'</div>'; return; }
+    var h='<button class="back" onclick="loadList()">← ко всем участникам</button>';
+    h+='<div class="card"><h3>'+esc(j.participant.name)+'</h3>';
+    if(j.feedback) h+='<div class="flags"><span class="chip c-ok">Отзыв: '+(j.feedback.kind==='video'?'видео':'текст')+'</span>'+(j.discount?'<span class="chip c-amber">Скидка -'+j.discount.percent+'%</span>':'')+'</div>';
+    h+='</div>';
+    j.days.forEach(function(d){
+      h+='<div class="card"><h3>'+esc(d.title)+'</h3>'+
+        '<div class="flags">'+(d.attended?'<span class="chip c-ok">был</span>':'<span class="chip">не отмечен</span>')+
+        (d.done?'<span class="chip c-ok">задание сдано</span>':'<span class="chip">нет задания</span>')+
+        (d.reviewed?'<span class="chip c-ok">✓ принято</span>':'')+'</div>';
+      d.answers.forEach(function(qa){ h+='<div class="qa"><div class="q">'+esc(qa.q)+'</div><div class="a">'+(qa.a?esc(qa.a):'<span class="muted">— нет ответа</span>')+'</div></div>'; });
+      if(d.done && !d.reviewed) h+='<div style="margin-top:10px"><button class="btn primary" onclick="review(\''+id+'\',\''+d.step_id+'\')">Отметить «Принято»</button></div>';
+      if(d.review_comment) h+='<div class="muted" style="margin-top:6px">Комментарий: '+esc(d.review_comment)+'</div>';
+      h+='</div>';
+    });
+    el.innerHTML=h;
+  };
+
+  window.review = async function(eid, sid){
+    var j=await apiPost('/api/admin/review',{enrollment_id:eid, step_id:sid});
+    if(j.ok) openDetail(eid); else alert(j.error||'Ошибка');
+  };
+
+  loadList();
+</script>
+</body>
+</html>

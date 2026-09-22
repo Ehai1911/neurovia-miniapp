@@ -7,10 +7,10 @@ function scan(v: string | undefined) {
     const c = v.charCodeAt(i);
     if (c > 255) { badIndex = i; badCode = c; break; }
   }
-  return { present: true, length: v.length, badIndex, badCode };
+  const prefix = v.slice(0, 3);
+  return { present: true, length: v.length, prefix, badIndex, badCode };
 }
 
-// Проверочный эндпоинт + диагностика env (без раскрытия значений).
 export default async function handler(_req: any, res: any) {
   const env = {
     SUPABASE_URL: scan(process.env.SUPABASE_URL),
@@ -23,13 +23,20 @@ export default async function handler(_req: any, res: any) {
     const questions = await supabase.from('step_questions').select('*', { count: 'exact', head: true });
 
     if (courses.error || steps.error || questions.error) {
-      return res.status(500).json({ ok: false, env, error: courses.error?.message || steps.error?.message || questions.error?.message });
+      return res.status(500).json({
+        ok: false, env,
+        errors: {
+          courses: courses.error,
+          steps: steps.error,
+          questions: questions.error,
+        },
+      });
     }
     return res.status(200).json({
       ok: true, env, db: 'miniapp',
       counts: { courses: courses.count, steps: steps.count, questions: questions.count },
     });
   } catch (e: any) {
-    return res.status(500).json({ ok: false, env, error: String(e?.message || e) });
+    return res.status(500).json({ ok: false, env, threw: String(e?.message || e) });
   }
 }

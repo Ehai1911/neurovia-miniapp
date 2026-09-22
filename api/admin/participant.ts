@@ -1,29 +1,23 @@
 import { getAuthedUser } from '../_lib/auth';
-import { getOrCreateUser, ensureEnrollment, COURSE_KEY, displayName } from '../_lib/db';
+import { getOrCreateUser, getAdminScope, scopeAllows, COURSE_KEY, displayName } from '../_lib/db';
 import { supabase } from '../_lib/supabase';
-
-function adminGate(req: any, enr: any) {
-  const dev = process.env.ALLOW_DEV_AUTH === '1' && (req.query?.admin === '1' || req.body?.admin === '1');
-  return dev || ['curator', 'admin'].includes(enr?.role);
-}
 
 // GET ?enrollment_id= — карточка участника: ответы по дням, посещение, отзыв, бонус, статус проверки.
 export default async function handler(req: any, res: any) {
   try {
     const tg = getAuthedUser(req);
     const me = await getOrCreateUser(tg);
-    const enr = await ensureEnrollment(me.id);
-    if (!enr || !adminGate(req, enr)) return res.status(403).json({ ok: false, error: 'not a curator' });
+    const scope = await getAdminScope(req, me.id);
+    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
 
     const targetId = String(req.query?.enrollment_id || '');
     if (!targetId) return res.status(400).json({ ok: false, error: 'enrollment_id required' });
 
-    // цель должна быть в том же потоке
     const { data: target } = await supabase
       .from('enrollments')
       .select('id, cohort_id, role, user:users(first_name,last_name,username,telegram_user_id)')
       .eq('id', targetId).maybeSingle();
-    if (!target || target.cohort_id !== enr.cohort_id) return res.status(403).json({ ok: false, error: 'not in your cohort' });
+    if (!target || !scopeAllows(scope, target.cohort_id)) return res.status(403).json({ ok: false, error: 'no access' });
 
     const { data: steps } = await supabase
       .from('steps').select('id, type, position, title, step_questions(id, position, text)')

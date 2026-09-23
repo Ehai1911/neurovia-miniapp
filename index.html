@@ -285,13 +285,8 @@
         h += '</div>';
       }
       else if(L.type==="feedback"){
-        h += '<p class="hint">Заполни короткую форму отзыва. По желанию прикрепи видеоотзыв — тогда бонусом откроется мини-курс (без видео — чек-лист).</p>'+
-             '<div id="fbform" class="fbform"></div>'+
-             '<div class="vidbox" style="margin-top:14px">'+
-               (state.video
-                 ? '<div class="row"><span class="chip ok">🎥 Видеоотзыв отправлен боту</span> <button class="btn" data-vidrm="1">убрать</button></div>'
-                 : '<button class="btn primary" data-vid="1">🎥 Прикрепить видеоотзыв</button>')+
-             '</div>';
+        h += '<p class="hint">Заполни короткую форму отзыва ниже.</p>'+
+             '<div id="fbform" class="fbform"></div>';
       }
       else if(L.type==="locked"){
         h += '<div id="bonusbody">'+bonusHTML()+'</div>';
@@ -322,8 +317,10 @@
       '<p class="hint">Спасибо за видеоотзыв! Открыт мини-курс, чтобы закрепить результат.</p>'+
       '<div class="row"><button class="btn primary" data-bonus="course">Открыть мини-курс</button></div>';
     return '<h4>🎁 Бонус за финиш — чек-лист</h4>'+
-      '<p class="hint">Ты прошёл(ла) все задания — забирай чек-лист. А если прикрепишь видеоотзыв на шаге «Обратная связь», откроется мини-курс.</p>'+
-      '<div class="row"><button class="btn primary" data-bonus="checklist">Открыть чек-лист</button></div>';
+      '<p class="hint">Ты прошёл(ла) все задания — забирай чек-лист.</p>'+
+      '<div class="row"><button class="btn primary" data-bonus="checklist">Открыть чек-лист</button></div>'+
+      '<p class="hint" style="margin-top:14px">🎥 Хочешь вместо чек-листа <b>мини-курс</b>? Пришли видеоотзыв — бот подскажет, что делать.</p>'+
+      '<div class="row"><button class="btn" data-vid="1">🎥 Прикрепить видеоотзыв</button></div>';
   }
 
   function renderProgress(){
@@ -436,14 +433,7 @@
       var vlink = "https://t.me/"+BOT_USERNAME+"?start=video";
       if(tg && tg.openTelegramLink){ tg.openTelegramLink(vlink); } else { window.open(vlink, '_blank', 'noopener'); }
       state.video=true; save(state);
-      var vb=t.closest('.vidbox'); if(vb){ vb.innerHTML='<div class="row"><span class="chip ok">🎥 Видеоотзыв отправлен боту</span> <button class="btn" data-vidrm="1">убрать</button></div>'; }
       var bb=document.getElementById('bonusbody'); if(bb){ bb.innerHTML=bonusHTML(); }
-      return;
-    }
-    else if(t.getAttribute("data-vidrm")){
-      state.video=false; save(state);
-      var vb2=t.closest('.vidbox'); if(vb2){ vb2.innerHTML='<button class="btn primary" data-vid="1">🎥 Прикрепить видеоотзыв</button>'; }
-      var bb2=document.getElementById('bonusbody'); if(bb2){ bb2.innerHTML=bonusHTML(); }
       return;
     }
     else if((id=t.getAttribute("data-bonus"))){

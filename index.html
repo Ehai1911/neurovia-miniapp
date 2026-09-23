@@ -36,6 +36,17 @@
 
   .card{background:var(--app);border:1px solid var(--border);border-radius:14px;padding:14px;margin:0 0 12px;box-shadow:0 1px 2px rgba(18,48,42,.04);}
   .card.done{border-color:color-mix(in srgb,var(--ok) 34%,transparent);}
+  /* Светлые карточки на тёмной бренд-рамке (вариант A) */
+  .card, .stat .box, .prow, .member{
+    background:#FFFFFF; color:#17233B;
+    --ink:#17233B; --ink-soft:#4C5D75; --ink-faint:#7E8CA2;
+    --app:#FFFFFF; --app-2:#F1F4F9;
+    --border:#E7EBF2; --border-2:#D6DDE8;
+    --accent-ink:#8A6D2F; --accent-soft:#F6EFDE;
+    --ok:#1E8A5A; --ok-bg:#E4F4EB;
+    border:1px solid #E7EBF2;
+    box-shadow:0 2px 12px rgba(0,0,0,.22);
+  }
   .wk{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 0 2px;}
   .wk .w{font-size:12px;font-weight:600;color:var(--accent-ink);text-transform:uppercase;letter-spacing:.05em;}
   .wk .date{font-size:12px;color:var(--ink-faint);}

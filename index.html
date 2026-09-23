@@ -528,12 +528,12 @@
       var sta=document.getElementById('sup-text'); var sst=document.getElementById('sup-status');
       var stxt=(sta&&sta.value||"").trim();
       if(!stxt){ if(sst) sst.textContent="Напишите сообщение."; return; }
-      t.disabled=true; if(sst) sst.textContent="Отправляем…";
+      t.disabled=true; if(sst){ sst.textContent="Отправляем…"; sst.style.color="var(--ink-faint)"; }
       api('/api/support',{method:'POST',body:{text:stxt}}).then(function(j){
-        if(j&&j.ok){ if(sta) sta.value=""; if(sst) sst.textContent="✅ Отправлено! Мы ответим вам в Telegram."; }
-        else { if(sst) sst.textContent=(j&&j.error)||"Не удалось отправить."; }
+        if(j&&j.ok){ if(sta) sta.value=""; if(sst){ sst.textContent="✅ Отправлено! Мы ответим вам в Telegram."; sst.style.color="#1E8A5A"; } }
+        else { if(sst){ sst.textContent=(j&&j.error)||"Не удалось отправить."; sst.style.color="#C0483C"; } }
         t.disabled=false;
-      }).catch(function(){ if(sst) sst.textContent="Не удалось отправить."; t.disabled=false; });
+      }).catch(function(){ if(sst){ sst.textContent="Не удалось отправить."; sst.style.color="#C0483C"; } t.disabled=false; });
       return;
     }
   });

@@ -251,12 +251,14 @@
       '<label>Старт <input type="date" id="d-start" value="'+(c.starts_on||'')+'" style="padding:6px"></label>'+
       '<label>Конец <input type="date" id="d-end" value="'+(c.ends_on||'')+'" style="padding:6px"></label>'+
       '<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="d-active" '+(c.is_active?'checked':'')+'> приём открыт</label>'+
-      '<button class="btn primary" onclick="saveDates()">Сохранить</button></div></div>';
+      '<button class="btn primary" onclick="saveDates()">Сохранить</button>'+
+      '<span id="dates-status" style="font-size:13px"></span></div></div>';
   };
   window.saveDates = async function(){
+    setStatus('dates-status','wait','Сохраняем…');
     var b={cohort_id:CUR.id, starts_on:(document.getElementById('d-start').value||null), ends_on:(document.getElementById('d-end').value||null), is_active:document.getElementById('d-active').checked};
     var j=await apiPost('/api/admin/update-cohort',b);
-    if(j.ok){ openCohort(CUR.id, CUR.title); } else alert(j.error||'Ошибка');
+    if(j.ok){ setStatus('dates-status','ok','✓ Сохранено'); } else { setStatus('dates-status','err',j.error||'Ошибка'); }
   };
 
   // Расписание потока (список для студентов)
@@ -281,14 +283,17 @@
         '<button class="btn" onclick="SCHED.splice('+i+',1);renderSched()">✕</button>'+
       '</div>';
     });
-    h+='<div class="row" style="gap:8px;margin-top:6px"><button class="btn" onclick="SCHED.push({title:\'\',at:\'\',note:\'\'});renderSched()">+ Добавить пункт</button>'+
-       '<button class="btn primary" onclick="saveSchedule()">Сохранить расписание</button></div></div>';
+    h+='<div class="row" style="gap:8px;margin-top:6px;align-items:center"><button class="btn" onclick="SCHED.push({title:\'\',at:\'\',note:\'\'});renderSched()">+ Добавить пункт</button>'+
+       '<button class="btn primary" onclick="saveSchedule()">Сохранить расписание</button>'+
+       '<span id="sched-status" style="font-size:13px"></span></div></div>';
     box.innerHTML=h;
   };
+  function setStatus(id, kind, txt){ var el=document.getElementById(id); if(!el) return; el.textContent=txt; el.style.color = kind==='ok'?'#1E8A5A':(kind==='err'?'#C0483C':'var(--ink-faint,#888)'); }
   window.saveSchedule = async function(){
+    setStatus('sched-status','wait','Сохраняем…');
     var clean=SCHED.filter(function(s){return (s.title&&s.title.trim())||(s.at&&s.at.trim());});
     var j=await apiPost('/api/admin/update-cohort',{cohort_id:CUR.id, schedule:clean});
-    if(j.ok){ alert('Расписание сохранено ✓'); } else alert(j.error||'Ошибка');
+    if(j.ok){ setStatus('sched-status','ok','✓ Сохранено'); } else { setStatus('sched-status','err',j.error||'Ошибка'); }
   };
 
   // Точка входа: есть токен/dev/Telegram → в кабинет; иначе — форма логина.

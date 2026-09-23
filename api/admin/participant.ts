@@ -1,13 +1,11 @@
-import { getAuthedUser } from '../_lib/auth';
-import { getOrCreateUser, getAdminScope, scopeAllows, COURSE_KEY, displayName } from '../_lib/db';
+import { resolveAdmin } from '../_lib/adminAccess';
+import { scopeAllows, COURSE_KEY, displayName } from '../_lib/db';
 import { supabase } from '../_lib/supabase';
 
 // GET ?enrollment_id= — карточка участника: ответы по дням, посещение, отзыв, бонус, статус проверки.
 export default async function handler(req: any, res: any) {
   try {
-    const tg = getAuthedUser(req);
-    const me = await getOrCreateUser(tg);
-    const scope = await getAdminScope(req, me.id);
+    const { scope } = await resolveAdmin(req);
     if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
 
     const targetId = String(req.query?.enrollment_id || '');

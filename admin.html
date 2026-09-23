@@ -51,6 +51,9 @@
   .flags{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;}
   .btn{appearance:none;border:1px solid var(--border-2);background:var(--app-2);color:var(--ink);font:inherit;font-size:13px;padding:7px 12px;border-radius:9px;cursor:pointer;}
   .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .lin{width:100%;font:inherit;font-size:15px;padding:10px 12px;border:1px solid var(--border-2);border-radius:9px;background:var(--app);color:var(--ink);}
+  .lin:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent);}
+  .logout{background:none;border:none;color:#EAF4EF;font:inherit;font-size:12px;cursor:pointer;text-decoration:underline;float:right;margin-top:-18px;}
   .muted{color:var(--ink-faint);font-size:13px;}
   .err{color:#C0483C;font-size:13px;padding:10px;}
 </style>
@@ -58,7 +61,16 @@
 <body>
   <div class="top"><div class="tt">Кабинет куратора</div><div class="ts" id="sub">загрузка…</div></div>
   <main>
-    <div id="cohorts"></div>
+    <div id="login" hidden>
+      <div class="card" style="max-width:360px;margin:40px auto;">
+        <h3 style="margin:0 0 12px">Вход куратора</h3>
+        <div style="margin-bottom:10px"><input id="in-login" class="lin" placeholder="Логин" autocapitalize="off" autocomplete="username"></div>
+        <div style="margin-bottom:12px"><input id="in-pass" class="lin" type="password" placeholder="Пароль" autocomplete="current-password"></div>
+        <button class="btn primary" style="width:100%" onclick="doLogin()">Войти</button>
+        <div id="login-err" class="err" hidden style="padding:8px 0 0"></div>
+      </div>
+    </div>
+    <div id="cohorts" hidden></div>
     <div id="list" hidden></div>
     <div id="detail" hidden></div>
     <div id="err" class="err" hidden></div>
@@ -71,14 +83,30 @@
   var DEV = U.searchParams.get('dev') === '1';
   var TG = U.searchParams.get('tg') || '999001';
   var initData = (tg && tg.initData) || '';
+  var TOKEN = '';
+  try { TOKEN = localStorage.getItem('adm_token') || ''; } catch(e){}
   function esc(x){ return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   function apiUrl(path, params){ var u=new URL(path, location.origin); if(DEV){u.searchParams.set('dev','1');u.searchParams.set('tg',TG);u.searchParams.set('admin','1');} if(params)Object.keys(params).forEach(function(k){u.searchParams.set(k,params[k]);}); return u.toString(); }
-  function hdr(){ return initData ? {'x-init-data':initData} : {}; }
-  async function apiGet(path, params){ var r=await fetch(apiUrl(path,params),{headers:hdr()}); return r.json(); }
-  async function apiPost(path, body){ var r=await fetch(apiUrl(path),{method:'POST',headers:Object.assign({'Content-Type':'application/json'},hdr()),body:JSON.stringify(body||{})}); return r.json(); }
+  function hdr(){ var h={}; if(TOKEN) h['Authorization']='Bearer '+TOKEN; else if(initData) h['x-init-data']=initData; return h; }
+  async function apiGet(path, params){ var r=await fetch(apiUrl(path,params),{headers:hdr()}); var j=await r.json(); j._status=r.status; return j; }
+  async function apiPost(path, body){ var r=await fetch(apiUrl(path),{method:'POST',headers:Object.assign({'Content-Type':'application/json'},hdr()),body:JSON.stringify(body||{})}); var j=await r.json(); j._status=r.status; return j; }
 
   function showErr(m){ var el=document.getElementById('err'); el.textContent=m; el.hidden=false; }
-  function only(id){ ['cohorts','list','detail'].forEach(function(x){ document.getElementById(x).hidden = (x!==id); }); }
+  function only(id){ ['login','cohorts','list','detail'].forEach(function(x){ document.getElementById(x).hidden = (x!==id); }); }
+
+  function showLogin(msg){ only('login'); document.getElementById('sub').textContent='вход'; var e=document.getElementById('login-err'); if(msg){e.textContent=msg;e.hidden=false;}else{e.hidden=true;} }
+  window.doLogin = async function(){
+    var login=document.getElementById('in-login').value.trim();
+    var password=document.getElementById('in-pass').value;
+    var e=document.getElementById('login-err'); e.hidden=true;
+    if(!login||!password){ e.textContent='Введите логин и пароль.'; e.hidden=false; return; }
+    var r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({login:login,password:password})});
+    var j=await r.json();
+    if(!j.ok){ e.textContent=j.error||'Ошибка входа.'; e.hidden=false; return; }
+    TOKEN=j.token; try{ localStorage.setItem('adm_token',TOKEN);}catch(x){}
+    loadCohorts();
+  };
+  window.logout = function(){ TOKEN=''; try{ localStorage.removeItem('adm_token'); }catch(x){} showLogin(); };
   var CUR=null; // текущий поток {id,title}
 
   async function loadCohorts(){
@@ -86,8 +114,8 @@
     document.getElementById('sub').textContent='выберите поток';
     var el=document.getElementById('cohorts');
     var j=await apiGet('/api/admin/cohorts');
-    if(!j.ok){ showErr('Доступ только для куратора. '+(j.error||'')); return; }
-    var h='<h2>Потоки</h2>';
+    if(!j.ok){ if(j._status===401||j._status===403){ showLogin(j._status===401?'Сессия истекла — войдите заново.':''); return; } showErr(j.error||'Ошибка'); return; }
+    var h=(TOKEN?'<button class="logout" onclick="logout()">выйти</button>':'')+'<h2>Потоки</h2>';
     if(!j.cohorts.length) h+='<div class="muted">Потоков пока нет.</div>';
     j.cohorts.forEach(function(c){
       var dates = c.starts_on ? (fmt(c.starts_on)+(c.ends_on?' – '+fmt(c.ends_on):'')) : '';
@@ -156,7 +184,8 @@
     if(j.ok) openDetail(eid); else alert(j.error||'Ошибка');
   };
 
-  loadCohorts();
+  // Точка входа: есть токен/dev/Telegram → в кабинет; иначе — форма логина.
+  if (TOKEN || DEV || initData) { loadCohorts(); } else { showLogin(); }
 </script>
 </body>
 </html>

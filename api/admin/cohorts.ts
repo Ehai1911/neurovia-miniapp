@@ -1,13 +1,10 @@
-import { getAuthedUser } from '../_lib/auth';
-import { getOrCreateUser, getAdminScope } from '../_lib/db';
+import { resolveAdmin } from '../_lib/adminAccess';
 import { supabase } from '../_lib/supabase';
 
 // GET — список потоков, которые видит куратор/админ (+ число участников).
 export default async function handler(req: any, res: any) {
   try {
-    const tg = getAuthedUser(req);
-    const me = await getOrCreateUser(tg);
-    const scope = await getAdminScope(req, me.id);
+    const { scope } = await resolveAdmin(req);
     if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
 
     let q = supabase.from('cohorts').select('*').order('created_at', { ascending: false });

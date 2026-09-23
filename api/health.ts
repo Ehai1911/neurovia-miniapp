@@ -6,6 +6,8 @@ export default async function handler(_req: any, res: any) {
     env: {
       url_len: url?.length, key_len: key?.length, key_prefix: key?.slice(0, 3),
       bot: !!process.env.BOT_TOKEN,
+      cron_secret: !!process.env.CRON_SECRET,
+      admin_jwt: !!process.env.ADMIN_JWT_SECRET,
     },
   };
   try {

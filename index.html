@@ -167,7 +167,7 @@
     </section>
 
     <section id="scr-team" hidden>
-      <h2>Команда потока</h2>
+      <h2>Поддержка</h2>
       <div id="team"></div>
     </section>
   </main>
@@ -176,7 +176,7 @@
     <button class="tab" role="tab" aria-selected="true" data-scr="lessons"><span class="i">🗓️</span>Занятия</button>
     <button class="tab" role="tab" aria-selected="false" data-scr="library"><span class="i">📚</span>Библиотека</button>
     <button class="tab" role="tab" aria-selected="false" data-scr="progress"><span class="i">📊</span>Прогресс</button>
-    <button class="tab" role="tab" aria-selected="false" data-scr="team"><span class="i">👥</span>Команда</button>
+    <button class="tab" role="tab" aria-selected="false" data-scr="team"><span class="i">🆘</span>Поддержка</button>
   </div>
 </div>
 
@@ -238,7 +238,12 @@
       } else { L.avail=false; }
     });
   }
-  function refresh(){ return api('/api/steps').then(function(j){ if(j.ok){ mergeServer(j); renderLessons(); renderProgress(); } return j; }); }
+  function applyBranding(){
+    var t=document.querySelector('.tt'); var s=document.querySelector('.ts');
+    if(t && SETTINGS.app_title) t.textContent=SETTINGS.app_title;
+    if(s && SETTINGS.app_subtitle) s.textContent=SETTINGS.app_subtitle;
+  }
+  function refresh(){ return api('/api/steps').then(function(j){ if(j.ok){ mergeServer(j); applyBranding(); renderLessons(); renderProgress(); } return j; }); }
 
   function renderLessons(){
     var host = document.getElementById("lessons"); host.innerHTML = ""; host.classList.remove("focus");
@@ -411,14 +416,16 @@
     });
   }
 
-  function renderTeam(){
+  function renderTeam(){ // вкладка «Поддержка»
     var host = document.getElementById("team"); host.innerHTML = "";
     var d = document.createElement("div"); d.className="card";
-    d.innerHTML = '<div class="wk"><span class="w">поток</span></div>'+
-                  '<h3>'+esc((COHORT&&COHORT.title)||'Ваш поток')+'</h3>'+
-                  '<p class="hint">Общий чат потока и связь с куратором — в Telegram-группе.</p>'+
-                  (SETTINGS.tg_group_url?'<div class="row"><button class="btn btn-tg" data-link="tg">💬 Telegram-группа</button></div>':'')+
-                  '<p class="hint" style="margin-top:10px">Список участников и прогресс видит куратор.</p>';
+    d.innerHTML = '<div class="wk"><span class="w">поддержка</span></div>'+
+                  '<h3>Нужна помощь?</h3>'+
+                  '<p class="hint">Не скачивается материал, вопрос по заданию или что-то не работает — напишите нам. Ответим в Telegram.</p>'+
+                  '<textarea id="sup-text" class="inp" placeholder="Опишите проблему…" style="min-height:92px"></textarea>'+
+                  '<div class="row" style="margin-top:8px"><button class="btn primary" data-support="1">Отправить</button></div>'+
+                  '<div id="sup-status" class="hint" style="margin-top:8px"></div>'+
+                  (SETTINGS.tg_group_url?('<p class="hint" style="margin-top:14px">Общий чат потока:</p><div class="row"><button class="btn btn-tg" data-link="tg">💬 Telegram-группа</button></div>'):'');
     host.appendChild(d);
   }
 
@@ -501,6 +508,18 @@
       alert(id==='course' ? "Демо: здесь откроется мини-курс (ссылку дадим позже)." : "Демо: здесь откроется чек-лист (ссылку дадим позже).");
       return;
     }
+    else if(t.getAttribute("data-support")){
+      var sta=document.getElementById('sup-text'); var sst=document.getElementById('sup-status');
+      var stxt=(sta&&sta.value||"").trim();
+      if(!stxt){ if(sst) sst.textContent="Напишите сообщение."; return; }
+      t.disabled=true; if(sst) sst.textContent="Отправляем…";
+      api('/api/support',{method:'POST',body:{text:stxt}}).then(function(j){
+        if(j&&j.ok){ if(sta) sta.value=""; if(sst) sst.textContent="✅ Отправлено! Мы ответим вам в Telegram."; }
+        else { if(sst) sst.textContent=(j&&j.error)||"Не удалось отправить."; }
+        t.disabled=false;
+      }).catch(function(){ if(sst) sst.textContent="Не удалось отправить."; t.disabled=false; });
+      return;
+    }
   });
 
   var tabs = document.querySelectorAll(".tab");
@@ -513,6 +532,7 @@
       });
       if(tab.getAttribute("data-scr")==="progress") renderProgress();
       if(tab.getAttribute("data-scr")==="library") renderLibrary();
+      if(tab.getAttribute("data-scr")==="team") renderTeam();
     });
   });
 

@@ -46,6 +46,7 @@ export default async function handler(req: any, res: any) {
         await setSetting('review_channel_id', id);
         return res.status(200).json({ ok: true, review_channel_id: id });
       }
+      if (action === 'getme') return res.status(200).json(await tg('getMe'));
       if (action === 'setcommands') {
         return res.status(200).json(await tg('setMyCommands', { commands: [{ command: 'kabinet', description: 'Кабинет куратора' }] }));
       }

@@ -255,7 +255,7 @@
         var openTxt = (L.type==="day") ? ((L.id-1>=1) ? ("Откроется после завершения Дня "+(L.id-1)) : "Откроется после Старта") : "Откроется после завершения всех заданий";
         cf.innerHTML = '<div class="wk"><span class="w">'+LABELS[L.type]+'</span></div>'+
           '<h3>'+esc(L.topic)+'</h3>'+
-          '<div class="lock">🔒 '+esc(openTxt)+' — бот пришлёт уведомление, когда откроется.</div>';
+          '<div class="lock">🔒 '+esc(openTxt)+' — мы сообщим, когда откроется.</div>';
         host.appendChild(cf); return;
       }
       var att = !!state.att[L.id], done = !!state.task[L.id], ans = state.ans[L.id] || [];
@@ -368,7 +368,7 @@
 
   // Содержимое шага «Бонус за финиш»: чек-лист (без видео) или мини-курс (с видео).
   function bonusHTML(){
-    if(!BONUS_AVAIL) return '<div class="lock">🔒 Откроется после прохождения всех заданий. Здесь бонус за финиш: чек-лист, а с видеоотзывом — мини-курс.</div>';
+    if(!BONUS_AVAIL) return '<div class="lock">🔒 Откроется после прохождения всех заданий.</div>';
     if(BONUS_COURSE) return '<h4>🎁 Бонус за финиш — мини-курс</h4>'+
       '<p class="hint">Куратор открыл тебе мини-курс за видеоотзыв — забирай, чтобы закрепить результат.</p>'+
       '<div class="row"><button class="btn primary" data-bonus="course">Открыть мини-курс</button></div>';

@@ -141,7 +141,10 @@
     var h='<button class="back" onclick="loadCohorts()">← ко всем потокам</button>'+
       '<div class="stat">'+
       tile(s.total,'участников')+tile(s.completed,'завершили')+tile(s.avgProgress+'%','сред. прогресс')+tile(s.tasksDone+'/'+s.tasksTotal,'задания')+
-      '</div><h2>Участники</h2>';
+      '</div>'+
+      '<div class="row" style="margin:0 0 10px"><button class="btn" onclick="editDates()">✎ Даты и приём потока</button></div>'+
+      '<div id="datesbox"></div>'+
+      '<h2>Участники</h2>';
     var studs=j.participants.filter(function(p){return p.role==='student';});
     if(studs.length===0) h+='<div class="muted">Пока никто не зашёл.</div>';
     studs.forEach(function(p){
@@ -164,7 +167,14 @@
     if(!j.ok){ el.innerHTML='<button class="back" onclick="backToList()">← назад</button><div class="err">'+esc(j.error)+'</div>'; return; }
     var h='<button class="back" onclick="backToList()">← ко всем участникам</button>';
     h+='<div class="card"><h3>'+esc(j.participant.name)+'</h3>';
-    if(j.feedback) h+='<div class="flags"><span class="chip c-ok">Отзыв: '+(j.feedback.kind==='video'?'видео':'текст')+'</span></div>';
+    if(j.feedback) h+='<div class="flags"><span class="chip c-ok">Отзыв: '+(j.feedback.kind==='video'?'видео':'текст')+'</span>'+(j.participant.bonus_course?' <span class="chip c-ok">🎁 мини-курс открыт</span>':'')+'</div>';
+    h+='<div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px">';
+    if(j.feedback && j.feedback.kind==='video'){
+      if(j.participant.bonus_course) h+='<button class="btn" onclick="grantCourse(\''+id+'\',true)">Закрыть мини-курс</button>';
+      else h+='<button class="btn primary" onclick="grantCourse(\''+id+'\',false)">🎁 Открыть мини-курс</button>';
+    }
+    h+='<button class="btn" onclick="moveDialog(\''+id+'\')">↔ Перенести в поток</button>';
+    h+='</div><div id="movebox"></div>';
     h+='</div>';
     j.days.forEach(function(d){
       h+='<div class="card"><h3>'+esc(d.title)+'</h3>'+
@@ -182,6 +192,43 @@
   window.review = async function(eid, sid){
     var j=await apiPost('/api/admin/review',{enrollment_id:eid, step_id:sid});
     if(j.ok) openDetail(eid); else alert(j.error||'Ошибка');
+  };
+
+  // Открыть/закрыть мини-курс
+  window.grantCourse = async function(eid, revoke){
+    var j=await apiPost('/api/admin/grant-course',{enrollment_id:eid, revoke:!!revoke});
+    if(j.ok) openDetail(eid); else alert(j.error||'Ошибка');
+  };
+  // Перенос участника в другой поток
+  window.moveDialog = async function(eid){
+    var box=document.getElementById('movebox'); if(!box) return;
+    box.innerHTML='<div class="muted" style="margin-top:8px">Загрузка потоков…</div>';
+    var j=await apiGet('/api/admin/cohorts');
+    if(!j.ok){ box.innerHTML='<div class="err">'+esc(j.error||'Ошибка')+'</div>'; return; }
+    var opts=j.cohorts.map(function(c){return '<option value="'+c.id+'">'+esc(c.title)+'</option>';}).join('');
+    box.innerHTML='<div class="row" style="margin-top:10px;gap:8px;align-items:center"><select id="movesel" style="flex:1;padding:8px;border-radius:8px">'+opts+'</select>'+
+      '<button class="btn primary" onclick="doMove(\''+eid+'\')">Перенести</button></div>';
+  };
+  window.doMove = async function(eid){
+    var sel=document.getElementById('movesel'); if(!sel) return;
+    var j=await apiPost('/api/admin/move-participant',{enrollment_id:eid, cohort_id:sel.value});
+    if(j.ok){ CUR=null; loadCohorts(); } else alert(j.error||'Ошибка');
+  };
+  // Редактирование дат/приёма потока
+  window.editDates = async function(){
+    var box=document.getElementById('datesbox'); if(!box||!CUR) return;
+    var j=await apiGet('/api/admin/cohorts');
+    var c=((j.cohorts||[]).filter(function(x){return x.id===CUR.id;})[0])||{};
+    box.innerHTML='<div class="card"><div class="row" style="gap:10px;flex-wrap:wrap;align-items:center">'+
+      '<label>Старт <input type="date" id="d-start" value="'+(c.starts_on||'')+'" style="padding:6px"></label>'+
+      '<label>Конец <input type="date" id="d-end" value="'+(c.ends_on||'')+'" style="padding:6px"></label>'+
+      '<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="d-active" '+(c.is_active?'checked':'')+'> приём открыт</label>'+
+      '<button class="btn primary" onclick="saveDates()">Сохранить</button></div></div>';
+  };
+  window.saveDates = async function(){
+    var b={cohort_id:CUR.id, starts_on:(document.getElementById('d-start').value||null), ends_on:(document.getElementById('d-end').value||null), is_active:document.getElementById('d-active').checked};
+    var j=await apiPost('/api/admin/update-cohort',b);
+    if(j.ok){ openCohort(CUR.id, CUR.title); } else alert(j.error||'Ошибка');
   };
 
   // Точка входа: есть токен/dev/Telegram → в кабинет; иначе — форма логина.

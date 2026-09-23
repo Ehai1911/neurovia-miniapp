@@ -71,6 +71,7 @@ export default async function handler(req: any, res: any) {
       role: enr?.role || 'student',
       steps: result,
       settings,
+      bonus_course: !!enr?.bonus_course,
       feedback: feedback ? { kind: feedback.kind } : null,
     });
   } catch (e: any) {

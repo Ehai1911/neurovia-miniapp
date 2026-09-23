@@ -109,7 +109,7 @@ export async function participant(req: any, res: any) {
     if (!targetId) return res.status(400).json({ ok: false, error: 'enrollment_id required' });
 
     const { data: target } = await supabase.from('enrollments')
-      .select('id, cohort_id, role, user:users(first_name,last_name,username,telegram_user_id)')
+      .select('id, cohort_id, role, bonus_course, user:users(first_name,last_name,username,telegram_user_id)')
       .eq('id', targetId).maybeSingle();
     if (!target || !scopeAllows(scope, target.cohort_id)) return res.status(403).json({ ok: false, error: 'no access' });
 
@@ -135,7 +135,7 @@ export async function participant(req: any, res: any) {
     });
     return res.status(200).json({
       ok: true,
-      participant: { enrollment_id: target.id, name: displayName(target.user || {}), tg_id: target.user?.telegram_user_id },
+      participant: { enrollment_id: target.id, name: displayName(target.user || {}), tg_id: target.user?.telegram_user_id, cohort_id: target.cohort_id, bonus_course: !!target.bonus_course },
       days,
       feedback: fb.data ? { kind: fb.data.kind, video_url: fb.data.video_url } : null,
     });
@@ -159,4 +159,57 @@ export async function review(req: any, res: any) {
     }, { onConflict: 'enrollment_id,step_id' });
     return res.status(200).json({ ok: true, reviewed: true });
   } catch (e: any) { return res.status(401).json({ ok: false, error: String(e?.message || e) }); }
+}
+
+// ---------- POST grant-course (открыть/убрать мини-курс) ----------
+export async function grantCourse(req: any, res: any) {
+  try {
+    const { scope } = await resolveAdmin(req);
+    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
+    const enrollment_id = req.body?.enrollment_id;
+    if (!enrollment_id) return res.status(400).json({ ok: false, error: 'enrollment_id required' });
+    const { data: target } = await supabase.from('enrollments').select('cohort_id').eq('id', enrollment_id).maybeSingle();
+    if (!target || !scopeAllows(scope, target.cohort_id)) return res.status(403).json({ ok: false, error: 'no access' });
+    const grant = !req.body?.revoke;
+    await supabase.from('enrollments')
+      .update({ bonus_course: grant, bonus_course_at: grant ? new Date().toISOString() : null })
+      .eq('id', enrollment_id);
+    return res.status(200).json({ ok: true, bonus_course: grant });
+  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
+}
+
+// ---------- POST move-participant (перенос в другой поток) ----------
+export async function moveParticipant(req: any, res: any) {
+  try {
+    const { scope } = await resolveAdmin(req);
+    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
+    const enrollment_id = req.body?.enrollment_id;
+    const cohort_id = req.body?.cohort_id;
+    if (!enrollment_id || !cohort_id) return res.status(400).json({ ok: false, error: 'enrollment_id & cohort_id required' });
+    const { data: target } = await supabase.from('enrollments').select('cohort_id').eq('id', enrollment_id).maybeSingle();
+    if (!target || !scopeAllows(scope, target.cohort_id)) return res.status(403).json({ ok: false, error: 'no access to source' });
+    if (!scopeAllows(scope, cohort_id)) return res.status(403).json({ ok: false, error: 'no access to target' });
+    await supabase.from('enrollments').update({ cohort_id }).eq('id', enrollment_id);
+    return res.status(200).json({ ok: true, cohort_id });
+  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
+}
+
+// ---------- POST update-cohort (даты / приём открыт) ----------
+export async function updateCohort(req: any, res: any) {
+  try {
+    const { scope } = await resolveAdmin(req);
+    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
+    const cohort_id = req.body?.cohort_id;
+    if (!cohort_id) return res.status(400).json({ ok: false, error: 'cohort_id required' });
+    if (!scopeAllows(scope, cohort_id)) return res.status(403).json({ ok: false, error: 'no access' });
+    const patch: any = {};
+    const b = req.body || {};
+    if ('starts_on' in b) patch.starts_on = b.starts_on || null;
+    if ('ends_on' in b) patch.ends_on = b.ends_on || null;
+    if ('is_active' in b) patch.is_active = !!b.is_active;
+    if (Object.keys(patch).length === 0) return res.status(400).json({ ok: false, error: 'nothing to update' });
+    const { error } = await supabase.from('cohorts').update(patch).eq('id', cohort_id);
+    if (error) return res.status(500).json({ ok: false, error: error.message });
+    return res.status(200).json({ ok: true });
+  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
 }

@@ -213,15 +213,14 @@
   function authPath(p){ if(!(tgw && tgw.initData)){ p += (p.indexOf('?')>=0?'&':'?')+'tg='+encodeURIComponent(_qs.get('tg')||'100000001'); } return p; }
   function api(p,opts){ opts=opts||{}; return fetch(authPath(p),{method:opts.method||'GET',headers:authHeaders(),body:opts.body?JSON.stringify(opts.body):undefined}).then(function(r){return r.json();}); }
 
-  var SETTINGS={}, COHORT=null, BONUS_AVAIL=false, SRV_VIDEO=false, videoLocal=false;
+  var SETTINGS={}, COHORT=null, BONUS_AVAIL=false, BONUS_COURSE=false, videoLocal=false;
   var state = {att:{},task:{},ans:{}};
-  function hasVideo(){ return SRV_VIDEO || videoLocal; }
   function esc(x){ return String(x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   var LABELS = {intro:"старт", day:"занятие", feedback:"обратная связь", locked:"после интенсива"};
 
   // Слить серверные шаги (/api/steps) в локальные LESSONS + состояние.
   function mergeServer(j){
-    SETTINGS=j.settings||{}; COHORT=j.cohort||null; SRV_VIDEO=(j.feedback&&j.feedback.kind==='video')||false;
+    SETTINGS=j.settings||{}; COHORT=j.cohort||null; BONUS_COURSE=!!j.bonus_course; videoLocal=false;
     var byPos={}; (j.steps||[]).forEach(function(s){ byPos[s.position]=s; });
     state={att:{},task:{},ans:{}};
     LESSONS.forEach(function(L){
@@ -339,14 +338,16 @@
   // Содержимое шага «Бонус за финиш»: чек-лист (без видео) или мини-курс (с видео).
   function bonusHTML(){
     if(!BONUS_AVAIL) return '<div class="lock">🔒 Откроется после прохождения всех заданий. Здесь бонус за финиш: чек-лист, а с видеоотзывом — мини-курс.</div>';
-    if(hasVideo()) return '<h4>🎁 Бонус за финиш — мини-курс</h4>'+
-      '<p class="hint">Спасибо за видеоотзыв! Открыт мини-курс, чтобы закрепить результат.</p>'+
+    if(BONUS_COURSE) return '<h4>🎁 Бонус за финиш — мини-курс</h4>'+
+      '<p class="hint">Куратор открыл тебе мини-курс за видеоотзыв — забирай, чтобы закрепить результат.</p>'+
       '<div class="row"><button class="btn primary" data-bonus="course">Открыть мини-курс</button></div>';
     return '<h4>🎁 Бонус за финиш — чек-лист</h4>'+
       '<p class="hint">Ты прошёл(ла) все задания — забирай чек-лист.</p>'+
       '<div class="row"><button class="btn primary" data-bonus="checklist">Открыть чек-лист</button></div>'+
-      '<p class="hint" style="margin-top:14px">🎥 Хочешь вместо чек-листа <b>мини-курс</b>? Пришли видеоотзыв — бот подскажет, что делать.</p>'+
-      '<div class="row"><button class="btn" data-vid="1">🎥 Прикрепить видеоотзыв</button></div>';
+      (videoLocal
+        ? '<p class="hint" style="margin-top:14px">🎥 Видеоотзыв отправлен — как куратор его посмотрит, здесь откроется <b>мини-курс</b>.</p>'
+        : '<p class="hint" style="margin-top:14px">🎥 Хочешь вместо чек-листа <b>мини-курс</b>? Пришли видеоотзыв — бот подскажет, что делать.</p>'+
+          '<div class="row"><button class="btn" data-vid="1">🎥 Прикрепить видеоотзыв</button></div>');
   }
 
   function renderProgress(){

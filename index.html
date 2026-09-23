@@ -292,19 +292,7 @@
              '</div>';
       }
       else if(L.type==="locked"){
-        if(SIMDAY>=3){
-          if(state.video){
-            h += '<h4>🎁 Бонус за финиш — мини-курс</h4>'+
-                 '<p class="hint">Спасибо за видеоотзыв! Открыт мини-курс, чтобы закрепить результат.</p>'+
-                 '<div class="row"><button class="btn primary" data-bonus="course">Открыть мини-курс</button></div>';
-          } else {
-            h += '<h4>🎁 Бонус за финиш — чек-лист</h4>'+
-                 '<p class="hint">Ты прошёл(ла) все задания — забирай чек-лист. А если прикрепишь видеоотзыв на шаге «Обратная связь», откроется мини-курс.</p>'+
-                 '<div class="row"><button class="btn primary" data-bonus="checklist">Открыть чек-лист</button></div>';
-          }
-        } else {
-          h += '<div class="lock">🔒 Откроется после прохождения всех заданий. Здесь бонус за финиш: чек-лист, а с видеоотзывом — мини-курс.</div>';
-        }
+        h += '<div id="bonusbody">'+bonusHTML()+'</div>';
       }
       c.innerHTML = h; host.appendChild(c);
     });
@@ -323,6 +311,17 @@
     s.setAttribute('ao-widget-id','YaiMjR7uDUSYlTxfhinDMw');
     s.setAttribute('ao-domain','prorostonline.com');
     slot.appendChild(s);
+  }
+
+  // Содержимое шага «Бонус за финиш»: чек-лист (без видео) или мини-курс (с видео).
+  function bonusHTML(){
+    if(SIMDAY<3) return '<div class="lock">🔒 Откроется после прохождения всех заданий. Здесь бонус за финиш: чек-лист, а с видеоотзывом — мини-курс.</div>';
+    if(state.video) return '<h4>🎁 Бонус за финиш — мини-курс</h4>'+
+      '<p class="hint">Спасибо за видеоотзыв! Открыт мини-курс, чтобы закрепить результат.</p>'+
+      '<div class="row"><button class="btn primary" data-bonus="course">Открыть мини-курс</button></div>';
+    return '<h4>🎁 Бонус за финиш — чек-лист</h4>'+
+      '<p class="hint">Ты прошёл(ла) все задания — забирай чек-лист. А если прикрепишь видеоотзыв на шаге «Обратная связь», откроется мини-курс.</p>'+
+      '<div class="row"><button class="btn primary" data-bonus="checklist">Открыть чек-лист</button></div>';
   }
 
   function renderProgress(){
@@ -434,12 +433,14 @@
     else if(t.getAttribute("data-vid")){
       state.video=true; save(state);
       var vb=t.closest('.vidbox'); if(vb){ vb.innerHTML='<div class="row"><span class="chip ok">🎥 Видеоотзыв прикреплён</span> <button class="btn" data-vidrm="1">убрать</button></div>'; }
+      var bb=document.getElementById('bonusbody'); if(bb){ bb.innerHTML=bonusHTML(); }
       alert("Демо: видеоотзыв «прикреплён». В рабочей версии видео загрузится в нашу папку «Отзывы» на Google Диске, и на шаге «Бонус за финиш» откроется мини-курс.");
       return;
     }
     else if(t.getAttribute("data-vidrm")){
       state.video=false; save(state);
       var vb2=t.closest('.vidbox'); if(vb2){ vb2.innerHTML='<button class="btn primary" data-vid="1">🎥 Прикрепить видеоотзыв</button>'; }
+      var bb2=document.getElementById('bonusbody'); if(bb2){ bb2.innerHTML=bonusHTML(); }
       return;
     }
     else if((id=t.getAttribute("data-bonus"))){

@@ -148,7 +148,7 @@
       h+='<div class="row" onclick="openDetail(\''+p.enrollment_id+'\')">'+
         '<div class="ava">'+esc((p.name||'?').charAt(0))+'</div>'+
         '<div><div class="nm">'+esc(p.name)+'</div><div class="sub">был '+p.attended+'/'+p.dayCount+' · задания '+p.done+'/'+p.dayCount+
-          (p.feedback?' · <span class="chip c-ok">отзыв</span>':'')+(p.discount?' · <span class="chip c-amber">-'+p.discount.percent+'%</span>':'')+'</div></div>'+
+          (p.feedback?' · <span class="chip c-ok">отзыв</span>':'')+'</div></div>'+
         '<div class="pr"><b>'+p.progress+'%</b><div class="bar"><span style="width:'+p.progress+'%"></span></div></div>'+
       '</div>';
     });
@@ -164,7 +164,7 @@
     if(!j.ok){ el.innerHTML='<button class="back" onclick="backToList()">← назад</button><div class="err">'+esc(j.error)+'</div>'; return; }
     var h='<button class="back" onclick="backToList()">← ко всем участникам</button>';
     h+='<div class="card"><h3>'+esc(j.participant.name)+'</h3>';
-    if(j.feedback) h+='<div class="flags"><span class="chip c-ok">Отзыв: '+(j.feedback.kind==='video'?'видео':'текст')+'</span>'+(j.discount?'<span class="chip c-amber">Скидка -'+j.discount.percent+'%</span>':'')+'</div>';
+    if(j.feedback) h+='<div class="flags"><span class="chip c-ok">Отзыв: '+(j.feedback.kind==='video'?'видео':'текст')+'</span></div>';
     h+='</div>';
     j.days.forEach(function(d){
       h+='<div class="card"><h3>'+esc(d.title)+'</h3>'+

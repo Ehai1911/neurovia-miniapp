@@ -71,11 +71,10 @@ export async function participants(req: any, res: any) {
     const eids = (enrolls || []).map((e: any) => e.id);
     if (eids.length === 0) return res.status(200).json({ ok: true, cohort, summary: { total: 0, completed: 0, avgProgress: 0, tasksDone: 0, tasksTotal: 0 }, participants: [] });
 
-    const [att, tasks, fb, disc] = await Promise.all([
+    const [att, tasks, fb] = await Promise.all([
       supabase.from('attendance').select('enrollment_id, step_id, attended').in('enrollment_id', eids),
       supabase.from('task_submissions').select('enrollment_id, step_id, completed').in('enrollment_id', eids),
       supabase.from('feedback_submissions').select('enrollment_id, kind').in('enrollment_id', eids),
-      supabase.from('discounts').select('enrollment_id, percent').in('enrollment_id', eids),
     ]);
     const attBy: Record<string, number> = {};
     (att.data || []).forEach((a: any) => { if (a.attended && dayIds.has(a.step_id)) attBy[a.enrollment_id] = (attBy[a.enrollment_id] || 0) + 1; });
@@ -83,13 +82,11 @@ export async function participants(req: any, res: any) {
     (tasks.data || []).forEach((t: any) => { if (t.completed && dayIds.has(t.step_id)) taskBy[t.enrollment_id] = (taskBy[t.enrollment_id] || 0) + 1; });
     const fbBy: Record<string, string> = {};
     (fb.data || []).forEach((f: any) => { fbBy[f.enrollment_id] = f.kind; });
-    const discBy: Record<string, any> = {};
-    (disc.data || []).forEach((d: any) => { discBy[d.enrollment_id] = d; });
 
     const parts = (enrolls || []).map((e: any) => {
       const attended = attBy[e.id] || 0; const done = taskBy[e.id] || 0;
       const progress = dayCount ? Math.round(((attended + done) / (dayCount * 2)) * 100) : 0;
-      return { enrollment_id: e.id, role: e.role, name: displayName(e.user || {}), tg_id: e.user?.telegram_user_id, attended, done, dayCount, feedback: fbBy[e.id] || null, discount: discBy[e.id] ? { percent: discBy[e.id].percent } : null, progress };
+      return { enrollment_id: e.id, role: e.role, name: displayName(e.user || {}), tg_id: e.user?.telegram_user_id, attended, done, dayCount, feedback: fbBy[e.id] || null, progress };
     });
     const studs = parts.filter((p: any) => p.role === 'student');
     const summary = {
@@ -119,12 +116,11 @@ export async function participant(req: any, res: any) {
     const { data: steps } = await supabase.from('steps')
       .select('id, type, position, title, step_questions(id, position, text)')
       .eq('course_key', COURSE_KEY).order('position');
-    const [att, tasks, answers, fb, disc] = await Promise.all([
+    const [att, tasks, answers, fb] = await Promise.all([
       supabase.from('attendance').select('step_id, attended').eq('enrollment_id', targetId),
       supabase.from('task_submissions').select('step_id, completed, reviewed, review_comment').eq('enrollment_id', targetId),
       supabase.from('task_answers').select('question_id, answer_text').eq('enrollment_id', targetId),
       supabase.from('feedback_submissions').select('*').eq('enrollment_id', targetId).maybeSingle(),
-      supabase.from('discounts').select('*').eq('enrollment_id', targetId).maybeSingle(),
     ]);
     const attSet = new Set((att.data || []).filter((a: any) => a.attended).map((a: any) => a.step_id));
     const taskMap = new Map((tasks.data || []).map((t: any) => [t.step_id, t]));
@@ -142,7 +138,6 @@ export async function participant(req: any, res: any) {
       participant: { enrollment_id: target.id, name: displayName(target.user || {}), tg_id: target.user?.telegram_user_id },
       days,
       feedback: fb.data ? { kind: fb.data.kind, video_url: fb.data.video_url } : null,
-      discount: disc.data ? { percent: disc.data.percent, expires_at: disc.data.expires_at, status: disc.data.status } : null,
     });
   } catch (e: any) { return res.status(401).json({ ok: false, error: String(e?.message || e) }); }
 }

@@ -1,22 +1,12 @@
 import { supabase } from './_lib/supabase';
 import { sendWithApp } from './_lib/bot';
 
-// Напоминания о занятиях. Дёргается часто (внешний планировщик раз в ~10 мин),
-// сам решает, что пора отправить, и защищается от повторов через miniapp.reminder_sent.
-//  • за 24 часа  → «Завтра в HH:MM …»
-//  • за 15 минут → «Через 15 минут … + Zoom»
-// Доступ: ?key=CRON_SECRET  ИЛИ  Authorization: Bearer <CRON_SECRET>  ИЛИ  ?dev=1 (ALLOW_DEV_AUTH).
+// Напоминания о занятиях. Запускается Vercel Cron раз в день (утром, 09:00 Алматы).
+// Если сегодня (по времени UTC+5) по расписанию потока есть встреча — шлёт студентам
+// «🔔 Сегодня в HH:MM — …» + кнопка Zoom + кнопка приложения. Защита от повторов: reminder_sent.
+// Доступ: ?key=CRON_SECRET | Authorization: Bearer <CRON_SECRET> | ?dev=1 (ALLOW_DEV_AUTH).
 
 const HOUR = 3600 * 1000;
-const MIN = 60 * 1000;
-
-// "2026-10-05T19:00" (время Алматы, UTC+5) → миллисекунды UTC
-function parseKZ(at: string): number {
-  const s = String(at || '');
-  if (!s) return NaN;
-  const withSec = s.length === 16 ? s + ':00' : s; // добавить секунды
-  return Date.parse(withSec + '+05:00');
-}
 function hhmm(at: string): string { return String(at || '').slice(11, 16); }
 
 export default async function handler(req: any, res: any) {
@@ -32,6 +22,7 @@ export default async function handler(req: any, res: any) {
     const host = req.headers['x-forwarded-host'] || req.headers['host'];
     const base = 'https://' + host;
     const now = Date.now();
+    const todayKZ = new Date(now + 5 * HOUR).toISOString().slice(0, 10); // YYYY-MM-DD (Алматы)
 
     const { data: settingsRows } = await supabase.from('app_settings').select('key,value');
     const settings: Record<string, string> = {};
@@ -46,7 +37,6 @@ export default async function handler(req: any, res: any) {
 
     for (const c of cohorts || []) {
       const sched = Array.isArray(c.schedule) ? c.schedule : [];
-      // студентов берём один раз на поток
       let chatIds: any[] | null = null;
       const getStudents = async () => {
         if (chatIds) return chatIds;
@@ -58,40 +48,29 @@ export default async function handler(req: any, res: any) {
       };
 
       for (const s of sched) {
-        const start = parseKZ(s.at);
-        if (isNaN(start)) continue;
+        if (String(s?.at || '').slice(0, 10) !== todayKZ) continue; // не сегодня
+        // атомарная заявка — не отправлять дважды
+        const claim = await supabase.from('reminder_sent')
+          .insert({ cohort_id: c.id, session_at: String(s.at), kind: 'today' }).select();
+        if (claim.error) continue;
+
+        const ids = await getStudents();
         const title = String(s.title || 'Занятие');
-
-        const jobs: Array<{ kind: string; cond: boolean; text: string; extra: any[] }> = [
-          { kind: 'd1', cond: now >= start - 24 * HOUR && now < start,
-            text: '🔔 Завтра в ' + hhmm(s.at) + ' — ' + title + '. Не забудьте!', extra: [] },
-          { kind: 'm15', cond: now >= start - 15 * MIN && now < start + 15 * MIN,
-            text: '🔔 Через 15 минут — ' + title + '. Подключайтесь 👇', extra: zoomRow },
-        ];
-
-        for (const job of jobs) {
-          if (!job.cond) continue;
-          // атомарная заявка: если такая строка уже есть — пропускаем (уже отправляли)
-          const claim = await supabase.from('reminder_sent')
-            .insert({ cohort_id: c.id, session_at: String(s.at), kind: job.kind }).select();
-          if (claim.error) continue; // конфликт PK → уже сделано
-          const ids = await getStudents();
-          let ok = 0;
-          for (const chatId of ids) {
-            const j = await sendWithApp(chatId, job.text, base, job.extra);
-            if (j && j.ok) { sent++; ok++; } else failed++;
-          }
-          if (ok === 0) {
-            // никому не ушло — снимаем заявку, чтобы повторить на след. запуске
-            await supabase.from('reminder_sent').delete()
-              .eq('cohort_id', c.id).eq('session_at', String(s.at)).eq('kind', job.kind);
-          }
-          fired.push({ cohort: c.title, session: s.at, kind: job.kind, students: ids.length, ok });
+        const text = '🔔 Сегодня в ' + hhmm(s.at) + ' — ' + title + '. Подключайтесь 👇';
+        let ok = 0;
+        for (const chatId of ids) {
+          const j = await sendWithApp(chatId, text, base, zoomRow);
+          if (j && j.ok) { sent++; ok++; } else failed++;
         }
+        if (ok === 0) {
+          await supabase.from('reminder_sent').delete()
+            .eq('cohort_id', c.id).eq('session_at', String(s.at)).eq('kind', 'today');
+        }
+        fired.push({ cohort: c.title, session: s.at, students: ids.length, ok });
       }
     }
 
-    return res.status(200).json({ ok: true, now: new Date(now).toISOString(), sent, failed, fired });
+    return res.status(200).json({ ok: true, date: todayKZ, sent, failed, fired });
   } catch (e: any) {
     return res.status(500).json({ ok: false, error: String(e?.message || e) });
   }

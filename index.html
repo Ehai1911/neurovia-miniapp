@@ -42,6 +42,10 @@
   .top .dot{width:30px;height:30px;border-radius:8px;background:#1E5648;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none;}
   .top .tt{font-weight:600;font-size:15px;}
   .top .ts{font-size:11.5px;color:#8FB6A8;}
+  .top .me{margin-left:auto;display:flex;align-items:center;gap:8px;min-width:0;}
+  .top .me .nm2{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;}
+  .top .me .av2{width:32px;height:32px;border-radius:50%;background:#1E5648;color:#EAF4EF;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:none;overflow:hidden;}
+  .top .me .av2 img{width:100%;height:100%;object-fit:cover;}
 
   main{flex:1;min-height:0;overflow-y:auto;padding:14px 14px 8px;}
   h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin:2px 2px 12px;}
@@ -142,6 +146,7 @@
   <div class="top">
     <div class="dot">🚀</div>
     <div><div class="tt">Neurovia Sprint</div><div class="ts">Интенсив в Telegram</div></div>
+    <div class="me" id="me-box"></div>
   </div>
 
   <main>
@@ -213,14 +218,14 @@
   function authPath(p){ if(!(tgw && tgw.initData)){ p += (p.indexOf('?')>=0?'&':'?')+'tg='+encodeURIComponent(_qs.get('tg')||'100000001'); } return p; }
   function api(p,opts){ opts=opts||{}; return fetch(authPath(p),{method:opts.method||'GET',headers:authHeaders(),body:opts.body?JSON.stringify(opts.body):undefined}).then(function(r){return r.json();}); }
 
-  var SETTINGS={}, COHORT=null, BONUS_AVAIL=false, BONUS_COURSE=false, videoLocal=false, SCHEDULE=[];
+  var SETTINGS={}, COHORT=null, BONUS_AVAIL=false, BONUS_COURSE=false, videoLocal=false, SCHEDULE=[], ME=null;
   var state = {att:{},task:{},ans:{}};
   function esc(x){ return String(x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   var LABELS = {intro:"старт", day:"занятие", feedback:"обратная связь", locked:"после интенсива"};
 
   // Слить серверные шаги (/api/steps) в локальные LESSONS + состояние.
   function mergeServer(j){
-    SETTINGS=j.settings||{}; COHORT=j.cohort||null; BONUS_COURSE=!!j.bonus_course; videoLocal=false; SCHEDULE=Array.isArray(j.schedule)?j.schedule:[];
+    SETTINGS=j.settings||{}; COHORT=j.cohort||null; BONUS_COURSE=!!j.bonus_course; videoLocal=false; SCHEDULE=Array.isArray(j.schedule)?j.schedule:[]; ME=j.me||null;
     var byPos={}; (j.steps||[]).forEach(function(s){ byPos[s.position]=s; });
     state={att:{},task:{},ans:{}};
     LESSONS.forEach(function(L){
@@ -242,6 +247,17 @@
     var t=document.querySelector('.tt'); var s=document.querySelector('.ts');
     if(t && SETTINGS.app_title) t.textContent=SETTINGS.app_title;
     if(s && SETTINGS.app_subtitle) s.textContent=SETTINGS.app_subtitle;
+    applyMe();
+  }
+  function applyMe(){
+    var box=document.getElementById('me-box'); if(!box) return;
+    var tgu=(tgw && tgw.initDataUnsafe && tgw.initDataUnsafe.user) || null;
+    var name=(ME&&ME.name) || (tgu?[tgu.first_name,tgu.last_name].filter(Boolean).join(' '):'') || '';
+    var photo=(tgu&&tgu.photo_url) || (ME&&ME.photo) || '';
+    if(!name){ box.innerHTML=''; return; }
+    var initials=name.trim().charAt(0).toUpperCase();
+    var av=photo ? '<span class="av2"><img src="'+esc(photo)+'" alt=""></span>' : '<span class="av2">'+esc(initials)+'</span>';
+    box.innerHTML='<span class="nm2">'+esc(name)+'</span>'+av;
   }
   function refresh(){ return api('/api/steps').then(function(j){ if(j.ok){ mergeServer(j); applyBranding(); renderLessons(); renderProgress(); } return j; }); }
 

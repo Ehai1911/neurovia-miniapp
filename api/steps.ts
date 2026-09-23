@@ -1,5 +1,5 @@
 import { getAuthedUser } from './_lib/auth';
-import { getOrCreateUser, ensureEnrollment, COURSE_KEY } from './_lib/db';
+import { getOrCreateUser, ensureEnrollment, COURSE_KEY, displayName } from './_lib/db';
 import { supabase } from './_lib/supabase';
 
 export default async function handler(req: any, res: any) {
@@ -72,6 +72,7 @@ export default async function handler(req: any, res: any) {
       role: enr?.role || 'student',
       steps: result,
       settings,
+      me: { name: displayName(user), photo: (user as any).photo_url || null },
       bonus_course: !!enr?.bonus_course,
       feedback: feedback ? { kind: feedback.kind } : null,
     });

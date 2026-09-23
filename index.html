@@ -504,13 +504,19 @@
   ['sim','notif'].forEach(function(idr){ var el=document.getElementById(idr); if(el) el.style.display='none'; });
   document.querySelectorAll('.demonote,.resetbar').forEach(function(el){ el.style.display='none'; });
 
-  renderTeam();
-  // Стартовая загрузка с сервера
-  document.getElementById('lessons').innerHTML='<div class="card"><div class="hint">Загрузка…</div></div>';
-  refresh().then(function(j){
-    if(!j || !j.ok){
-      document.getElementById('lessons').innerHTML='<div class="card"><div class="lock">Не удалось загрузить данные. Открой мини-апп внутри Telegram по кнопке бота.'+((j&&j.error)?('<br><br><small>'+esc(String(j.error))+'</small>'):'')+'</div></div>';
-    }
-    renderTeam();
-  });
+  // Стартовая загрузка с сервера (с обработкой ошибок и кнопкой «Повторить»)
+  function boot(){
+    var host=document.getElementById('lessons');
+    host.innerHTML='<div class="card"><div class="hint">Загрузка…</div></div>';
+    refresh().then(function(j){
+      if(!j || !j.ok){
+        host.innerHTML='<div class="card"><div class="lock">Не удалось загрузить данные.'+((j&&j.error)?('<br><br><small>'+esc(String(j.error))+'</small>'):'')+'<div class="row" style="margin-top:10px"><button class="btn" data-retry="1">Повторить</button></div></div></div>';
+      }
+      try{ renderTeam(); }catch(e){}
+    }).catch(function(e){
+      host.innerHTML='<div class="card"><div class="lock">Ошибка загрузки: '+esc(String((e&&e.message)||e))+'<div class="row" style="margin-top:10px"><button class="btn" data-retry="1">Повторить</button></div></div></div>';
+    });
+  }
+  document.addEventListener('click', function(e){ var b=e.target.closest('[data-retry]'); if(b){ boot(); } });
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', boot); } else { setTimeout(boot, 0); }
 </script>

@@ -1,5 +1,6 @@
 import { supabase } from './_lib/supabase';
 import { getOrCreateUser, getActiveEnrollment, displayName } from './_lib/db';
+import { sendWithApp } from './_lib/bot';
 
 // Единый эндпоинт бота (экономим лимит функций Vercel):
 //  • POST  — приём апдейтов Telegram (webhook): /start и видеоотзывы.
@@ -77,13 +78,13 @@ export default async function handler(req: any, res: any) {
 
     const from = msg.from || {};
     const chatId = msg.chat?.id;
+    const host = req.headers['x-forwarded-host'] || req.headers['host'];
+    const base = 'https://' + host;
 
     const text = (typeof msg.text === 'string') ? msg.text.trim() : '';
 
     // /kabinet → кнопка-вход в кабинет куратора (мини-приложение в Telegram)
     if (text.startsWith('/kabinet')) {
-      const host = req.headers['x-forwarded-host'] || req.headers['host'];
-      const base = 'https://' + host;
       await tg('sendMessage', {
         chat_id: chatId,
         text: '🎛 Кабинет куратора\nОткройте кнопкой ниже и войдите по логину и паролю (потом вход запомнится).',
@@ -92,9 +93,14 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ ok: true });
     }
 
-    // /start → приглашение прислать видео
+    // /start → приглашение прислать видео (по deep-link ?start=video) или приветствие
     if (text.startsWith('/start')) {
-      await tg('sendMessage', { chat_id: chatId, text: 'Пришлите сюда ваш видеоотзыв 🎥 — просто прикрепите видео в этот чат.' });
+      if (/\bvideo\b/.test(text)) {
+        await sendWithApp(chatId, 'Пришлите сюда ваш видеоотзыв 🎥 — просто прикрепите видео в этот чат.', base);
+      } else {
+        await sendWithApp(chatId,
+          'Здравствуйте! Это приложение спринта «Neurovia Sprint — От интереса к оплате»: расписание живых встреч, ссылки на Zoom, отметка посещения по кодовому слову и задания.\n\nОткрывайте кнопкой ниже 👇', base);
+      }
       return res.status(200).json({ ok: true });
     }
 
@@ -120,12 +126,12 @@ export default async function handler(req: any, res: any) {
         await tg('copyMessage', { chat_id: channelId, from_chat_id: chatId, message_id: msg.message_id, caption });
       }
 
-      await tg('sendMessage', { chat_id: chatId, text: 'Спасибо! Видеоотзыв получен ✅ «Бонус за финиш — мини-курс» откроется после проверки куратором.' });
+      await sendWithApp(chatId, 'Спасибо! Видеоотзыв получен ✅ «Бонус за финиш — мини-курс» откроется после проверки куратором.', base);
       return res.status(200).json({ ok: true });
     }
 
     // Прочие сообщения
-    await tg('sendMessage', { chat_id: chatId, text: 'Чтобы оставить видеоотзыв — прикрепите видео в этот чат 🎥' });
+    await sendWithApp(chatId, 'Чтобы оставить видеоотзыв — прикрепите видео в этот чат 🎥', base);
     return res.status(200).json({ ok: true });
   } catch (e: any) {
     // Всегда 200 для Telegram, чтобы не было ретраев-штормов; ошибку логируем в ответ.

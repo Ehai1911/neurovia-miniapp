@@ -15,8 +15,16 @@ export default async function handler(req: any, res: any) {
     const already = await getActiveEnrollment(user.id);
     if (already) return res.status(200).json({ ok: true, enrolled: true, cohort_id: already.cohort_id, note: 'already enrolled' });
 
-    const { data: invite } = await supabase
-      .from('enroll_invites').select('*').eq('token', token).eq('status', 'active').maybeSingle();
+    // Ищем приглашение по токену (из письма) ИЛИ по номеру заказа (со страницы «Спасибо»).
+    let invite: any = null;
+    {
+      const byToken = await supabase.from('enroll_invites').select('*').eq('token', token).eq('status', 'active').maybeSingle();
+      invite = byToken.data;
+      if (!invite) {
+        const byOrder = await supabase.from('enroll_invites').select('*').eq('external_ref', token).eq('status', 'active').maybeSingle();
+        invite = byOrder.data;
+      }
+    }
     if (!invite) return res.status(404).json({ ok: false, error: 'Ссылка недействительна или уже использована.' });
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
       await supabase.from('enroll_invites').update({ status: 'expired' }).eq('id', invite.id);

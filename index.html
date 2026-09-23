@@ -204,6 +204,8 @@
     {n:"Сауле", r:"участник"}, {n:"Мадина", r:"участник"}, {n:"Ержан", r:"участник"}
   ];
   var KEY = "nvl_miniapp_demo_v1";
+  // Ссылка на Google-форму загрузки видеоотзыва (вставить, когда форма готова).
+  var VIDEO_FORM_URL = "";
 
   function load(){ var s; try{ s=JSON.parse(localStorage.getItem(KEY))||{}; }catch(e){ s={}; } s.att=s.att||{}; s.task=s.task||{}; s.ans=s.ans||{}; return s; }
   function save(s){ try{ localStorage.setItem(KEY, JSON.stringify(s)); }catch(e){} }
@@ -431,10 +433,13 @@
     else if(t.getAttribute("data-video")){ alert("В демо видео не подключено. В рабочей версии здесь будет видео-приветствие."); return; }
     else if(t.getAttribute("data-link")){ alert("В демо ссылка скрыта. В рабочей версии откроется Telegram-группа потока."); return; }
     else if(t.getAttribute("data-vid")){
+      if(VIDEO_FORM_URL){
+        if(tg && tg.openLink){ tg.openLink(VIDEO_FORM_URL); } else { window.open(VIDEO_FORM_URL, '_blank', 'noopener'); }
+      }
       state.video=true; save(state);
       var vb=t.closest('.vidbox'); if(vb){ vb.innerHTML='<div class="row"><span class="chip ok">🎥 Видеоотзыв прикреплён</span> <button class="btn" data-vidrm="1">убрать</button></div>'; }
       var bb=document.getElementById('bonusbody'); if(bb){ bb.innerHTML=bonusHTML(); }
-      alert("Демо: видеоотзыв «прикреплён». В рабочей версии видео загрузится в нашу папку «Отзывы» на Google Диске, и на шаге «Бонус за финиш» откроется мини-курс.");
+      if(!VIDEO_FORM_URL){ alert("Демо: видеоотзыв «прикреплён». В рабочей версии откроется Google-форма загрузки видео в нашу папку «Отзывы», и на шаге «Бонус за финиш» откроется мини-курс."); }
       return;
     }
     else if(t.getAttribute("data-vidrm")){

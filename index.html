@@ -283,14 +283,46 @@
         h += '</div>';
       }
       else if(L.type==="feedback"){
-        h += '<p class="hint">Поделитесь впечатлениями — это помогает нам стать лучше.</p>'+
-             '<div class="row"><button class="btn primary" data-fb="1">Оставить отзыв</button></div>';
+        h += '<p class="hint">Заполни короткую форму отзыва. По желанию прикрепи видеоотзыв — тогда бонусом откроется мини-курс (без видео — чек-лист).</p>'+
+             '<div id="fbform" class="fbform"></div>'+
+             '<div class="vidbox" style="margin-top:14px">'+
+               (state.video
+                 ? '<div class="row"><span class="chip ok">🎥 Видеоотзыв прикреплён</span> <button class="btn" data-vidrm="1">убрать</button></div>'
+                 : '<button class="btn primary" data-vid="1">🎥 Прикрепить видеоотзыв</button>')+
+             '</div>';
       }
       else if(L.type==="locked"){
-        h += '<div class="lock">🔒 Откроется после прохождения всех заданий. Здесь тебя ждёт бонус за финиш, чтобы закрепить результат.</div>';
+        if(SIMDAY>=3){
+          if(state.video){
+            h += '<h4>🎁 Бонус за финиш — мини-курс</h4>'+
+                 '<p class="hint">Спасибо за видеоотзыв! Открыт мини-курс, чтобы закрепить результат.</p>'+
+                 '<div class="row"><button class="btn primary" data-bonus="course">Открыть мини-курс</button></div>';
+          } else {
+            h += '<h4>🎁 Бонус за финиш — чек-лист</h4>'+
+                 '<p class="hint">Ты прошёл(ла) все задания — забирай чек-лист. А если прикрепишь видеоотзыв на шаге «Обратная связь», откроется мини-курс.</p>'+
+                 '<div class="row"><button class="btn primary" data-bonus="checklist">Открыть чек-лист</button></div>';
+          }
+        } else {
+          h += '<div class="lock">🔒 Откроется после прохождения всех заданий. Здесь бонус за финиш: чек-лист, а с видеоотзывом — мини-курс.</div>';
+        }
       }
       c.innerHTML = h; host.appendChild(c);
     });
+    mountFeedbackWidget();
+  }
+
+  // Встраиваем форму отзыва (виджет XL) в шаг «Обратная связь» — скрипт нужно
+  // добавлять живым элементом (через innerHTML <script> не исполняется).
+  function mountFeedbackWidget(){
+    var slot = document.getElementById('fbform');
+    if(!slot || slot.getAttribute('data-mounted')) return;
+    slot.setAttribute('data-mounted','1');
+    var s = document.createElement('script');
+    s.src = 'https://front.xlcrm.ai/site/widget/widget.min.js';
+    s.setAttribute('ao-number','7416');
+    s.setAttribute('ao-widget-id','YaiMjR7uDUSYlTxfhinDMw');
+    s.setAttribute('ao-domain','prorostonline.com');
+    slot.appendChild(s);
   }
 
   function renderProgress(){
@@ -399,7 +431,21 @@
     }
     else if(t.getAttribute("data-video")){ alert("В демо видео не подключено. В рабочей версии здесь будет видео-приветствие."); return; }
     else if(t.getAttribute("data-link")){ alert("В демо ссылка скрыта. В рабочей версии откроется Telegram-группа потока."); return; }
-    else if(t.getAttribute("data-fb")){ alert("В демо форма отзыва отключена. В рабочей версии здесь оставляют отзыв."); }
+    else if(t.getAttribute("data-vid")){
+      state.video=true; save(state);
+      var vb=t.closest('.vidbox'); if(vb){ vb.innerHTML='<div class="row"><span class="chip ok">🎥 Видеоотзыв прикреплён</span> <button class="btn" data-vidrm="1">убрать</button></div>'; }
+      alert("Демо: видеоотзыв «прикреплён». В рабочей версии видео загрузится в нашу папку «Отзывы» на Google Диске, и на шаге «Бонус за финиш» откроется мини-курс.");
+      return;
+    }
+    else if(t.getAttribute("data-vidrm")){
+      state.video=false; save(state);
+      var vb2=t.closest('.vidbox'); if(vb2){ vb2.innerHTML='<button class="btn primary" data-vid="1">🎥 Прикрепить видеоотзыв</button>'; }
+      return;
+    }
+    else if((id=t.getAttribute("data-bonus"))){
+      alert(id==='course' ? "Демо: здесь откроется мини-курс (ссылку дадим позже)." : "Демо: здесь откроется чек-лист (ссылку дадим позже).");
+      return;
+    }
   });
 
   var tabs = document.querySelectorAll(".tab");

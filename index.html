@@ -203,25 +203,51 @@
     {n:"Айгерим", r:"куратор"}, {n:"Данияр", r:"участник"},
     {n:"Сауле", r:"участник"}, {n:"Мадина", r:"участник"}, {n:"Ержан", r:"участник"}
   ];
-  var KEY = "nvl_miniapp_demo_v1";
   // Бот для приёма видеоотзывов: студент отправляет видео прямо в чат с ботом.
   var BOT_USERNAME = "neurovia_sprint_bot";
 
-  function load(){ var s; try{ s=JSON.parse(localStorage.getItem(KEY))||{}; }catch(e){ s={}; } s.att=s.att||{}; s.task=s.task||{}; s.ans=s.ans||{}; return s; }
-  function save(s){ try{ localStorage.setItem(KEY, JSON.stringify(s)); }catch(e){} }
-  var state = load();
-  var SIMDAY = 0;
-  function esc(x){ return String(x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  // ---- связь с сервером (авторизация: initData в Telegram, ?tg= в браузере для dev) ----
+  var tgw = window.Telegram && window.Telegram.WebApp;
+  var _qs = new URLSearchParams(location.search);
+  function authHeaders(){ var h={'content-type':'application/json'}; if(tgw && tgw.initData){ h['x-init-data']=tgw.initData; } return h; }
+  function authPath(p){ if(!(tgw && tgw.initData)){ p += (p.indexOf('?')>=0?'&':'?')+'tg='+encodeURIComponent(_qs.get('tg')||'100000001'); } return p; }
+  function api(p,opts){ opts=opts||{}; return fetch(authPath(p),{method:opts.method||'GET',headers:authHeaders(),body:opts.body?JSON.stringify(opts.body):undefined}).then(function(r){return r.json();}); }
 
+  var SETTINGS={}, COHORT=null, BONUS_AVAIL=false, SRV_VIDEO=false, videoLocal=false;
+  var state = {att:{},task:{},ans:{}};
+  function hasVideo(){ return SRV_VIDEO || videoLocal; }
+  function esc(x){ return String(x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   var LABELS = {intro:"старт", day:"занятие", feedback:"обратная связь", locked:"после интенсива"};
+
+  // Слить серверные шаги (/api/steps) в локальные LESSONS + состояние.
+  function mergeServer(j){
+    SETTINGS=j.settings||{}; COHORT=j.cohort||null; SRV_VIDEO=(j.feedback&&j.feedback.kind==='video')||false;
+    var byPos={}; (j.steps||[]).forEach(function(s){ byPos[s.position]=s; });
+    state={att:{},task:{},ans:{}};
+    LESSONS.forEach(function(L){
+      var pos = (L.type==='intro')?0 : (L.type==='day')?L.id : (L.type==='feedback')?4 : 5;
+      var s = byPos[pos];
+      if(s){
+        L.sid=s.id; L.avail=!!s.available; L.tetrad=s.tetrad_url||''; L.videoUrl=s.video_url||''; L.quizUrl=s.quiz_url||'';
+        state.att[L.id]=!!s.attended; state.task[L.id]=!!s.done;
+        if(s.questions && s.questions.length){
+          L.questions=s.questions.map(function(q){return q.text;});
+          L.qids=s.questions.map(function(q){return q.id;});
+        }
+        state.ans[L.id]=(s.questions||[]).map(function(q){return q.answer||'';});
+        if(L.type==='locked') BONUS_AVAIL=L.avail;
+      } else { L.avail=false; }
+    });
+  }
+  function refresh(){ return api('/api/steps').then(function(j){ if(j.ok){ mergeServer(j); renderLessons(); renderProgress(); } return j; }); }
 
   function renderLessons(){
     var host = document.getElementById("lessons"); host.innerHTML = "";
     LESSONS.forEach(function(L){
-      var future = (L.type==="day" && L.id>SIMDAY) || (L.type==="feedback" && SIMDAY<3);
+      var future = (L.type==="day" || L.type==="feedback") && !L.avail;
       if(future){
         var cf = document.createElement("div"); cf.className="card";
-        var openTxt = (L.type==="day") ? ((L.id-1>=1) ? ("Откроется после завершения Дня "+(L.id-1)) : "Откроется после Старта") : "Откроется после завершения Дня 3";
+        var openTxt = (L.type==="day") ? ((L.id-1>=1) ? ("Откроется после завершения Дня "+(L.id-1)) : "Откроется после Старта") : "Откроется после завершения всех заданий";
         cf.innerHTML = '<div class="wk"><span class="w">'+LABELS[L.type]+'</span></div>'+
           '<h3>'+esc(L.topic)+'</h3>'+
           '<div class="lock">🔒 '+esc(openTxt)+' — бот пришлёт уведомление, когда откроется.</div>';
@@ -238,14 +264,14 @@
         h += '<p class="hint">Знакомство со спринтом: как всё устроено, ссылки на встречу и что подготовить.</p>'+
              '<div class="row"><button class="btn primary" data-toggle="0" aria-expanded="false">Открыть материалы</button></div>'+
              '<div class="cardbody mat" id="body-0" hidden>'+
-               '<h4>Видео-приветствие</h4>'+
-               '<div class="video"><iframe src="https://v.xlsite.ai/v/BK4pTHqKrEWV6YB9F-zXPA?showTitle=true&showControls=true&muted=true&autoplay=false" allow="accelerometer; fullscreen; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe></div>'+
+               (L.videoUrl?('<h4>Видео-приветствие</h4>'+
+               '<div class="video"><iframe src="'+esc(L.videoUrl)+'?showTitle=true&showControls=true&muted=true&autoplay=false" allow="accelerometer; fullscreen; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe></div>'):'')+
                '<h4>Как проходит спринт</h4>'+
                '<ul><li>📅 3 дня онлайн, в 19:00, в Zoom.</li>'+
                '<li>🎥 Актуальные даты — на лендинге.</li>'+
                '<li>💬 Ссылка на Zoom приходит в Telegram-группу — обязательно вступи.</li></ul>'+
                '<div class="row"><button class="btn btn-tg" data-link="tg">💬 Telegram-группа</button>'+
-               '<a class="btn btn-zoom" href="https://us06web.zoom.us/j/9678068960?pwd=jbtLhLedwugc2SHDFMybzBAJAxMh9g.1" target="_blank" rel="noopener">🎥 Подключиться в Zoom</a></div>'+
+               (SETTINGS.zoom_url?('<a class="btn btn-zoom" href="'+esc(SETTINGS.zoom_url)+'" target="_blank" rel="noopener">🎥 Подключиться в Zoom</a>'):'')+'</div>'+
                '<h4>Важно: тетради</h4>'+
                '<ul><li>Три тетради связаны — одна вытекает из другой.</li>'+
                '<li>Каждую скачай и заполни сам(а) — это личный рабочий документ.</li>'+
@@ -281,7 +307,7 @@
           h += '<div class="row" style="margin-top:9px"><button class="btn primary" data-savetask="'+L.id+'">Сохранить ответы</button></div>'+
                '<div class="err" id="terr-'+L.id+'" hidden></div>';
         }
-        if(L.quiz){ h += '<div class="row" style="margin-top:12px"><button class="btn" data-quiz="1">🧭 Пройти квиз «Карта разрыва»</button></div>'; }
+        if(L.quiz){ h += '<div class="row" style="margin-top:12px"><button class="btn" data-quiz="'+L.id+'">🧭 Пройти квиз «Карта разрыва»</button></div>'; }
         h += '</div>';
       }
       else if(L.type==="feedback"){
@@ -312,8 +338,8 @@
 
   // Содержимое шага «Бонус за финиш»: чек-лист (без видео) или мини-курс (с видео).
   function bonusHTML(){
-    if(SIMDAY<3) return '<div class="lock">🔒 Откроется после прохождения всех заданий. Здесь бонус за финиш: чек-лист, а с видеоотзывом — мини-курс.</div>';
-    if(state.video) return '<h4>🎁 Бонус за финиш — мини-курс</h4>'+
+    if(!BONUS_AVAIL) return '<div class="lock">🔒 Откроется после прохождения всех заданий. Здесь бонус за финиш: чек-лист, а с видеоотзывом — мини-курс.</div>';
+    if(hasVideo()) return '<h4>🎁 Бонус за финиш — мини-курс</h4>'+
       '<p class="hint">Спасибо за видеоотзыв! Открыт мини-курс, чтобы закрепить результат.</p>'+
       '<div class="row"><button class="btn primary" data-bonus="course">Открыть мини-курс</button></div>';
     return '<h4>🎁 Бонус за финиш — чек-лист</h4>'+
@@ -343,29 +369,30 @@
   }
 
   function renderLibrary(){
-    var host = document.getElementById("library"); host.innerHTML = "";
-    var days = LESSONS.filter(function(L){return L.type==="day";});
-    days.forEach(function(L){
-      var d = document.createElement("div"); d.className="card";
-      d.innerHTML = '<div class="wk"><span class="w">запись встречи</span></div>'+
-                    '<h3>'+esc(L.topic)+'</h3>'+
-                    '<div class="row"><button class="btn primary" data-rec="'+L.id+'">▶ Смотреть запись</button></div>';
-      host.appendChild(d);
+    var host = document.getElementById("library"); host.innerHTML = '<div class="card"><div class="hint">Загрузка…</div></div>';
+    api('/api/library').then(function(j){
+      host.innerHTML = "";
+      var recs = (j && j.recordings) || [];
+      if(!recs.length){ host.innerHTML='<div class="card"><div class="hint">Записи появятся после занятий.</div></div>'; return; }
+      recs.forEach(function(r){
+        var d = document.createElement("div"); d.className="card";
+        d.innerHTML = '<div class="wk"><span class="w">запись встречи</span></div>'+
+                      '<h3>'+esc(r.title)+'</h3>'+
+                      '<div class="row"><button class="btn primary" data-recurl="'+esc(r.video_url||'')+'">▶ Смотреть запись</button></div>';
+        host.appendChild(d);
+      });
     });
   }
 
   function renderTeam(){
     var host = document.getElementById("team"); host.innerHTML = "";
-    TEAM.forEach(function(m){
-      var d = document.createElement("div"); d.className="member";
-      d.innerHTML = '<div class="ava">'+esc(m.n.charAt(0))+'</div>'+
-                    '<div><div class="mn">'+esc(m.n)+'</div></div>'+
-                    '<span class="role">'+esc(m.r)+'</span>';
-      host.appendChild(d);
-    });
-    var add = document.createElement("button"); add.className="btn"; add.style.width="100%"; add.textContent="+ Добавить участника";
-    add.onclick=function(){ alert("В демо добавление отключено. В рабочей версии куратор добавляет участников по нику или ссылке-приглашению."); };
-    host.appendChild(add);
+    var d = document.createElement("div"); d.className="card";
+    d.innerHTML = '<div class="wk"><span class="w">поток</span></div>'+
+                  '<h3>'+esc((COHORT&&COHORT.title)||'Ваш поток')+'</h3>'+
+                  '<p class="hint">Общий чат потока и связь с куратором — в Telegram-группе.</p>'+
+                  (SETTINGS.tg_group_url?'<div class="row"><button class="btn btn-tg" data-link="tg">💬 Telegram-группа</button></div>':'')+
+                  '<p class="hint" style="margin-top:10px">Список участников и прогресс видит куратор.</p>';
+    host.appendChild(d);
   }
 
   function renderSim(){
@@ -383,29 +410,37 @@
   document.addEventListener("click", function(e){
     var t = e.target.closest("button"); if(!t) return;
     var id;
-    if(t.getAttribute("data-sim")){ SIMDAY=+t.getAttribute("data-sim"); renderSim(); renderNotif(); renderLessons(); renderProgress(); return; }
     if((id=t.getAttribute("data-mark"))){
-      id=+id; var L=LESSONS.filter(function(x){return x.id===id;})[0];
+      id=+id; var Lm=getL(id);
       var inp=document.querySelector('[data-code="'+id+'"]'); var err=document.getElementById("err-"+id);
-      var val=(inp.value||"").trim().toLowerCase();
+      var val=(inp.value||"").trim();
       if(!val){ err.textContent="Введите кодовое слово."; err.hidden=false; return; }
-      if(val!==L.code){ err.textContent="Неверное слово. Его называют в конце занятия."; err.hidden=false; return; }
-      state.att[id]=true; save(state); renderLessons(); renderProgress();
+      err.hidden=true; t.disabled=true;
+      api('/api/attendance',{method:'POST',body:{step_id:Lm.sid,code:val}}).then(function(j){
+        if(!j.ok){ err.textContent=j.error||"Неверное слово."; err.hidden=false; t.disabled=false; return; }
+        refresh();
+      });
+      return;
     }
     else if((id=t.getAttribute("data-savetask"))){
-      id=+id; var L2=getL(id); var err2=document.getElementById("terr-"+id); var vals=[]; var bad=false;
+      id=+id; var L2=getL(id); var err2=document.getElementById("terr-"+id); var payload={}; var bad=false;
       for(var i=0;i<L2.questions.length;i++){
         var ta=document.querySelector('[data-ans="'+id+'-'+i+'"]'); var v=(ta && ta.value||"").trim();
         if(!v){ bad=true; if(ta) ta.style.borderColor="#C0483C"; }
-        vals.push(v);
+        if(L2.qids && L2.qids[i]) payload[L2.qids[i]]=v;
       }
       if(bad){ err2.textContent="Ответьте на все три вопроса."; err2.hidden=false; return; }
-      state.ans[id]=vals; state.task[id]=true; save(state); renderLessons(); renderProgress();
+      err2.hidden=true; t.disabled=true;
+      api('/api/answers',{method:'POST',body:{step_id:L2.sid,answers:payload}}).then(function(j){
+        if(!j.ok){ err2.textContent=j.error||"Не удалось сохранить."; err2.hidden=false; t.disabled=false; return; }
+        refresh();
+      });
+      return;
     }
-    else if((id=t.getAttribute("data-taskedit"))){ id=+id; state.task[id]=false; save(state); renderLessons(); renderProgress(); }
-    else if((id=t.getAttribute("data-rec"))){ alert("В демо запись не подключена. В рабочей версии откроется видео встречи с Google Диска."); }
-    else if(t.getAttribute("data-tetrad")){ alert("В демо тетрадь не подключена. В рабочей версии откроется тетрадь дня (ссылка/файл)."); }
-    else if(t.getAttribute("data-quiz")){ alert("В демо квиз не подключён. В рабочей версии откроется квиз «Карта разрыва» — 22 вопроса."); }
+    else if((id=t.getAttribute("data-taskedit"))){ id=+id; state.task[id]=false; renderLessons(); return; }
+    else if(t.getAttribute("data-recurl")!==null){ var ru=t.getAttribute("data-recurl"); if(ru){ if(tgw&&tgw.openLink){tgw.openLink(ru);}else{window.open(ru,'_blank','noopener');} } return; }
+    else if((id=t.getAttribute("data-tetrad"))){ id=+id; var Lt=getL(id); if(Lt&&Lt.tetrad){ if(tgw&&tgw.openLink){tgw.openLink(Lt.tetrad);}else{window.open(Lt.tetrad,'_blank','noopener');} } else { alert("Тетрадь появится здесь, когда куратор добавит ссылку."); } return; }
+    else if((id=t.getAttribute("data-quiz"))){ id=+id; var Lq=getL(id); if(Lq&&Lq.quizUrl){ if(tgw&&tgw.openLink){tgw.openLink(Lq.quizUrl);}else{window.open(Lq.quizUrl,'_blank','noopener');} } else { alert("Квиз «Карта разрыва» появится, когда куратор добавит ссылку."); } return; }
     else if(t.getAttribute("data-toggle")!==null){
       var tid=t.getAttribute("data-toggle"); var m=document.getElementById("body-"+tid);
       if(m){
@@ -427,12 +462,11 @@
       }
       return;
     }
-    else if(t.getAttribute("data-video")){ alert("В демо видео не подключено. В рабочей версии здесь будет видео-приветствие."); return; }
-    else if(t.getAttribute("data-link")){ alert("В демо ссылка скрыта. В рабочей версии откроется Telegram-группа потока."); return; }
+    else if(t.getAttribute("data-link")){ var gl=SETTINGS.tg_group_url; if(gl){ if(tgw&&tgw.openTelegramLink&&gl.indexOf('t.me')>=0){tgw.openTelegramLink(gl);}else if(tgw&&tgw.openLink){tgw.openLink(gl);}else{window.open(gl,'_blank','noopener');} } else { alert("Ссылка на Telegram-группу появится, когда её добавит куратор."); } return; }
     else if(t.getAttribute("data-vid")){
       var vlink = "https://t.me/"+BOT_USERNAME+"?start=video";
-      if(tg && tg.openTelegramLink){ tg.openTelegramLink(vlink); } else { window.open(vlink, '_blank', 'noopener'); }
-      state.video=true; save(state);
+      if(tgw && tgw.openTelegramLink){ tgw.openTelegramLink(vlink); } else { window.open(vlink, '_blank', 'noopener'); }
+      videoLocal=true;
       var bb=document.getElementById('bonusbody'); if(bb){ bb.innerHTML=bonusHTML(); }
       return;
     }
@@ -455,21 +489,28 @@
     });
   });
 
-  document.getElementById("reset").addEventListener("click", function(){
-    state={att:{},task:{},ans:{}}; save(state); renderLessons(); renderProgress();
-  });
-
-  var tg = window.Telegram && window.Telegram.WebApp;
-  if(tg){
-    try{ tg.ready(); tg.expand(); }catch(e){}
-    try{ document.documentElement.setAttribute('data-theme', tg.colorScheme==='dark'?'dark':'light'); }catch(e){}
-    var tp = tg.themeParams || {}; var rs = document.documentElement.style;
+  // Тема Telegram + инициализация
+  if(tgw){
+    try{ tgw.ready(); tgw.expand(); }catch(e){}
+    try{ document.documentElement.setAttribute('data-theme', tgw.colorScheme==='dark'?'dark':'light'); }catch(e){}
+    var tp = tgw.themeParams || {}; var rs = document.documentElement.style;
     function setv(n,v){ if(v) rs.setProperty(n,v); }
     setv('--bg', tp.bg_color); setv('--app', tp.section_bg_color||tp.bg_color); setv('--app-2', tp.secondary_bg_color||tp.bg_color);
     setv('--ink', tp.text_color); setv('--ink-soft', tp.subtitle_text_color||tp.hint_color); setv('--ink-faint', tp.hint_color||tp.subtitle_text_color);
     setv('--accent', tp.button_color); setv('--accent-ink', tp.accent_text_color||tp.link_color||tp.button_color);
     try{ document.body.classList.add('in-tg'); }catch(e){}
-    SIMDAY = 3;
   }
-  renderSim(); renderNotif(); renderLessons(); renderProgress(); renderLibrary(); renderTeam();
+  // Прячем демо-элементы (симулятор дней, уведомление, сброс, плашку) — теперь всё с сервера
+  ['sim','notif'].forEach(function(idr){ var el=document.getElementById(idr); if(el) el.style.display='none'; });
+  document.querySelectorAll('.demonote,.resetbar').forEach(function(el){ el.style.display='none'; });
+
+  renderTeam();
+  // Стартовая загрузка с сервера
+  document.getElementById('lessons').innerHTML='<div class="card"><div class="hint">Загрузка…</div></div>';
+  refresh().then(function(j){
+    if(!j || !j.ok){
+      document.getElementById('lessons').innerHTML='<div class="card"><div class="lock">Не удалось загрузить данные. Открой мини-апп внутри Telegram по кнопке бота.'+((j&&j.error)?('<br><br><small>'+esc(String(j.error))+'</small>'):'')+'</div></div>';
+    }
+    renderTeam();
+  });
 </script>

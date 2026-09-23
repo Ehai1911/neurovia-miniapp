@@ -34,6 +34,10 @@ export default async function handler(req: any, res: any) {
       feedback = fb.data;
     }
 
+    const { data: settingsRows } = await supabase.from('app_settings').select('key,value');
+    const settings: Record<string, string> = {};
+    (settingsRows || []).forEach((r: any) => { settings[r.key] = r.value; });
+
     const days = (steps || []).filter((s: any) => s.type === 'day');
     const allDaysDone = days.length > 0 && days.every((d: any) => taskMap.get(d.id) === true);
 
@@ -43,7 +47,7 @@ export default async function handler(req: any, res: any) {
       let available = true;
       if (s.type === 'day') available = prevDone;
       else if (s.type === 'feedback') available = allDaysDone;
-      else if (s.type === 'bonus') available = !!feedback;
+      else if (s.type === 'bonus') available = allDaysDone;
 
       const done = taskMap.get(s.id) === true;
       const questions = (s.step_questions || [])
@@ -53,6 +57,7 @@ export default async function handler(req: any, res: any) {
       result.push({
         id: s.id, type: s.type, position: s.position, title: s.title,
         description: s.description, video_url: s.video_url, quiz_url: s.quiz_url,
+        tetrad_url: s.tetrad_url, code_required: !!s.code_word,
         has_tasks: s.has_tasks, available, attended: attSet.has(s.id), done, questions,
       });
 
@@ -65,6 +70,7 @@ export default async function handler(req: any, res: any) {
       cohort: enr?.cohort ? { id: enr.cohort.id, title: enr.cohort.title } : null,
       role: enr?.role || 'student',
       steps: result,
+      settings,
       feedback: feedback ? { kind: feedback.kind } : null,
     });
   } catch (e: any) {

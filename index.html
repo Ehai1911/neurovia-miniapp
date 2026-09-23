@@ -535,7 +535,10 @@
   function boot(){
     var host=document.getElementById('lessons');
     host.innerHTML='<div class="card"><div class="hint">Загрузка…</div></div>';
-    refresh().then(function(j){
+    // Токен из ссылки после оплаты (t.me/bot?startapp=TOKEN) → зачисление в нужный поток ДО загрузки шагов
+    var token = (tgw && tgw.initDataUnsafe && tgw.initDataUnsafe.start_param) || _qs.get('startapp') || _qs.get('token') || '';
+    var pre = token ? api('/api/enroll',{method:'POST',body:{token:token}}).catch(function(){return null;}) : Promise.resolve(null);
+    pre.then(function(){ return refresh(); }).then(function(j){
       if(!j || !j.ok){
         host.innerHTML='<div class="card"><div class="lock">Не удалось загрузить данные.'+((j&&j.error)?('<br><br><small>'+esc(String(j.error))+'</small>'):'')+'<div class="row" style="margin-top:10px"><button class="btn" data-retry="1">Повторить</button></div></div></div>';
       }

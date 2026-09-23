@@ -18,16 +18,20 @@ export function verifyInitData(initData: string): TgUser {
   const hash = params.get('hash');
   if (!hash) throw new Error('no hash in initData');
   params.delete('hash');
-  params.delete('signature'); // новые клиенты шлют Ed25519-подпись — в HMAC-проверку не входит
-
-  const pairs: string[] = [];
-  const keys = Array.from(params.keys()).sort();
-  for (const k of keys) pairs.push(`${k}=${params.get(k)}`);
-  const dataCheck = pairs.join('\n');
 
   const secret = createHmac('sha256', 'WebAppData').update(botToken).digest();
-  const computed = createHmac('sha256', secret).update(dataCheck).digest('hex');
-  if (computed !== hash) throw new Error('bad initData signature');
+  const dataCheck = (includeSignature: boolean) => {
+    const keys = Array.from(params.keys())
+      .filter((k) => includeSignature || k !== 'signature')
+      .sort();
+    return keys.map((k) => `${k}=${params.get(k)}`).join('\n');
+  };
+  const calc = (s: string) => createHmac('sha256', secret).update(s).digest('hex');
+
+  // Принимаем, если хэш сходится с любым вариантом (с полем signature или без) —
+  // разные версии клиентов Telegram считают data_check_string по-разному.
+  const ok = calc(dataCheck(true)) === hash || calc(dataCheck(false)) === hash;
+  if (!ok) throw new Error('bad initData signature');
 
   const userJson = params.get('user');
   if (!userJson) throw new Error('no user in initData');

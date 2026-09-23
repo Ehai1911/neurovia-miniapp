@@ -12,6 +12,8 @@ const MAP: Record<string, (req: any, res: any) => Promise<any>> = {
   'grant-course': H.grantCourse,
   'move-participant': H.moveParticipant,
   'update-cohort': H.updateCohort,
+  'support': H.support,
+  'support-resolve': H.supportResolve,
 };
 
 export default async function handler(req: any, res: any) {

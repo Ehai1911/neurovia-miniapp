@@ -116,6 +116,7 @@
     var j=await apiGet('/api/admin/cohorts');
     if(!j.ok){ if(j._status===401||j._status===403){ showLogin(j._status===401?'Сессия истекла — войдите заново.':''); return; } showErr(j.error||'Ошибка'); return; }
     var h=(TOKEN?'<button class="logout" onclick="logout()">выйти</button>':'')+'<h2>Потоки</h2>';
+    h+='<div class="row" style="margin:0 0 12px"><button class="btn" style="width:100%" onclick="openSupport()">🆘 Обращения в поддержку <span id="sup-badge"></span></button></div>';
     if(!j.cohorts.length) h+='<div class="muted">Потоков пока нет.</div>';
     j.cohorts.forEach(function(c){
       var dates = c.starts_on ? (fmt(c.starts_on)+(c.ends_on?' – '+fmt(c.ends_on):'')) : '';
@@ -127,7 +128,33 @@
       '</div>';
     });
     el.innerHTML=h;
+    apiGet('/api/admin/support').then(function(sj){ var b=document.getElementById('sup-badge'); if(b && sj && sj.ok && sj.newCount>0){ b.innerHTML='<span class="chip c-amber">'+sj.newCount+' новых</span>'; } });
   }
+  // Обращения в поддержку
+  window.openSupport = async function(){
+    only('list');
+    var el=document.getElementById('list'); el.innerHTML='<div class="muted">Загрузка…</div>';
+    var j=await apiGet('/api/admin/support');
+    if(!j.ok){ el.innerHTML='<button class="back" onclick="loadCohorts()">← к потокам</button><div class="err">'+esc(j.error)+'</div>'; return; }
+    document.getElementById('sub').textContent='поддержка';
+    var h='<button class="back" onclick="loadCohorts()">← к потокам</button><h2>Обращения в поддержку</h2>';
+    if(!j.messages.length){ h+='<div class="muted">Обращений пока нет.</div>'; el.innerHTML=h; return; }
+    j.messages.forEach(function(m){
+      var when=''; try{ when=new Date(m.created_at).toLocaleString('ru-RU'); }catch(e){}
+      h+='<div class="card"><div class="flags">'+
+        (m.status==='new'?'<span class="chip c-amber">новое</span>':'<span class="chip c-ok">решено</span>')+
+        '</div><div class="nm">'+esc(m.name)+(m.username?' (@'+esc(m.username)+')':'')+'</div>'+
+        '<div class="sub">'+esc(m.cohort)+' · '+esc(when)+' · id '+esc(m.tg_id)+'</div>'+
+        '<div style="margin:8px 0;white-space:pre-wrap">'+esc(m.text)+'</div>'+
+        (m.status==='new'?'<button class="btn primary" onclick="resolveSupport(\''+m.id+'\')">Отметить решённым</button>':'')+
+      '</div>';
+    });
+    el.innerHTML=h;
+  };
+  window.resolveSupport = async function(id){
+    var j=await apiPost('/api/admin/support-resolve',{id:id});
+    if(j.ok) openSupport(); else alert(j.error||'Ошибка');
+  };
   function fmt(d){ try{ var p=String(d).split('-'); return p[2]+'.'+p[1]; }catch(e){ return String(d); } }
 
   window.openCohort = async function(cohortId, title){

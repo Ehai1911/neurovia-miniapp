@@ -17,7 +17,14 @@ export default async function handler(req: any, res: any) {
 
     const name = displayName(user);
     const cohortTitle = enr?.cohort?.title || '—';
-    const uname = (tg as any).username ? ' (@' + (tg as any).username + ')' : '';
+    const username = (tg as any).username || null;
+    const uname = username ? ' (@' + username + ')' : '';
+
+    // Сохраняем в базу — чтобы куратор видел обращения в кабинете.
+    await supabase.from('support_messages').insert({
+      user_id: user.id, cohort_id: enr?.cohort_id || null,
+      name, username, tg_id: user.telegram_user_id, text, status: 'new',
+    });
 
     const { data: s1 } = await supabase.from('app_settings').select('value').eq('key', 'support_channel_id').maybeSingle();
     const { data: s2 } = await supabase.from('app_settings').select('value').eq('key', 'review_channel_id').maybeSingle();

@@ -194,6 +194,44 @@ export async function moveParticipant(req: any, res: any) {
   } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
 }
 
+// ---------- GET support (обращения в поддержку) ----------
+export async function support(req: any, res: any) {
+  try {
+    const { scope } = await resolveAdmin(req);
+    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
+    let q = supabase.from('support_messages').select('*').order('created_at', { ascending: false }).limit(200);
+    if (!scope.global) q = q.in('cohort_id', scope.cohortIds || []);
+    const { data } = await q;
+    const cohortIds = Array.from(new Set((data || []).map((m: any) => m.cohort_id).filter(Boolean)));
+    const titles: Record<string, string> = {};
+    if (cohortIds.length) {
+      const { data: cs } = await supabase.from('cohorts').select('id,title').in('id', cohortIds);
+      (cs || []).forEach((c: any) => { titles[c.id] = c.title; });
+    }
+    const messages = (data || []).map((m: any) => ({
+      id: m.id, name: m.name, username: m.username, tg_id: m.tg_id,
+      text: m.text, status: m.status, created_at: m.created_at, cohort: titles[m.cohort_id] || '—',
+    }));
+    const newCount = messages.filter((m: any) => m.status === 'new').length;
+    return res.status(200).json({ ok: true, messages, newCount });
+  } catch (e: any) { return res.status(401).json({ ok: false, error: String(e?.message || e) }); }
+}
+
+// ---------- POST support-resolve {id} ----------
+export async function supportResolve(req: any, res: any) {
+  try {
+    const { scope } = await resolveAdmin(req);
+    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
+    const id = req.body?.id;
+    if (!id) return res.status(400).json({ ok: false, error: 'id required' });
+    const { data: m } = await supabase.from('support_messages').select('cohort_id').eq('id', id).maybeSingle();
+    if (!m) return res.status(404).json({ ok: false, error: 'not found' });
+    if (!scope.global && m.cohort_id && !scopeAllows(scope, m.cohort_id)) return res.status(403).json({ ok: false, error: 'no access' });
+    await supabase.from('support_messages').update({ status: 'done' }).eq('id', id);
+    return res.status(200).json({ ok: true });
+  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
+}
+
 // ---------- POST update-cohort (даты / приём открыт) ----------
 export async function updateCohort(req: any, res: any) {
   try {

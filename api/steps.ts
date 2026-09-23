@@ -68,6 +68,7 @@ export default async function handler(req: any, res: any) {
       ok: true,
       enrolled: !!enr,
       cohort: enr?.cohort ? { id: enr.cohort.id, title: enr.cohort.title } : null,
+      schedule: enr?.cohort?.schedule || [],
       role: enr?.role || 'student',
       steps: result,
       settings,

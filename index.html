@@ -213,14 +213,14 @@
   function authPath(p){ if(!(tgw && tgw.initData)){ p += (p.indexOf('?')>=0?'&':'?')+'tg='+encodeURIComponent(_qs.get('tg')||'100000001'); } return p; }
   function api(p,opts){ opts=opts||{}; return fetch(authPath(p),{method:opts.method||'GET',headers:authHeaders(),body:opts.body?JSON.stringify(opts.body):undefined}).then(function(r){return r.json();}); }
 
-  var SETTINGS={}, COHORT=null, BONUS_AVAIL=false, BONUS_COURSE=false, videoLocal=false;
+  var SETTINGS={}, COHORT=null, BONUS_AVAIL=false, BONUS_COURSE=false, videoLocal=false, SCHEDULE=[];
   var state = {att:{},task:{},ans:{}};
   function esc(x){ return String(x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   var LABELS = {intro:"старт", day:"занятие", feedback:"обратная связь", locked:"после интенсива"};
 
   // Слить серверные шаги (/api/steps) в локальные LESSONS + состояние.
   function mergeServer(j){
-    SETTINGS=j.settings||{}; COHORT=j.cohort||null; BONUS_COURSE=!!j.bonus_course; videoLocal=false;
+    SETTINGS=j.settings||{}; COHORT=j.cohort||null; BONUS_COURSE=!!j.bonus_course; videoLocal=false; SCHEDULE=Array.isArray(j.schedule)?j.schedule:[];
     var byPos={}; (j.steps||[]).forEach(function(s){ byPos[s.position]=s; });
     state={att:{},task:{},ans:{}};
     LESSONS.forEach(function(L){
@@ -242,6 +242,7 @@
 
   function renderLessons(){
     var host = document.getElementById("lessons"); host.innerHTML = ""; host.classList.remove("focus");
+    var sc=scheduleHTML(); if(sc){ var sw=document.createElement("div"); sw.innerHTML=sc; while(sw.firstChild) host.appendChild(sw.firstChild); }
     LESSONS.forEach(function(L){
       var future = (L.type==="day" || L.type==="feedback") && !L.avail;
       if(future){
@@ -333,6 +334,31 @@
     s.setAttribute('ao-widget-id','YaiMjR7uDUSYlTxfhinDMw');
     s.setAttribute('ao-domain','prorostonline.com');
     slot.appendChild(s);
+  }
+
+  // Расписание живых встреч (ведёт куратор в кабинете).
+  function fmtWhen(ts, raw){
+    if(isNaN(ts)) return raw||'';
+    var d=new Date(ts);
+    var mon=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'][d.getMonth()];
+    var hh=('0'+d.getHours()).slice(-2), mm=('0'+d.getMinutes()).slice(-2);
+    return d.getDate()+' '+mon+', '+hh+':'+mm;
+  }
+  function scheduleHTML(){
+    if(!SCHEDULE || !SCHEDULE.length) return '';
+    var now=Date.now(), nextIdx=-1, best=Infinity;
+    var items=SCHEDULE.map(function(s){ var t=s.at?Date.parse(s.at):NaN; return {title:s.title,note:s.note,at:s.at,ts:t}; });
+    items.forEach(function(it,i){ if(!isNaN(it.ts)&&it.ts>=now&&(it.ts-now)<best){ best=it.ts-now; nextIdx=i; } });
+    var h='<div class="card"><div class="wk"><span class="w">расписание</span></div><h3>🗓 Живые встречи</h3>';
+    items.forEach(function(it,i){
+      var when=it.at?fmtWhen(it.ts,it.at):'';
+      h+='<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--app-2)">'+
+         '<div><b>'+esc(it.title||'Встреча')+'</b>'+(i===nextIdx?' <span class="chip ok">ближайшая</span>':'')+(it.note?('<div class="hint" style="margin:2px 0 0">'+esc(it.note)+'</div>'):'')+'</div>'+
+         '<div class="hint" style="white-space:nowrap">'+esc(when)+'</div></div>';
+    });
+    if(SETTINGS.zoom_url) h+='<div class="row" style="margin-top:12px"><a class="btn btn-zoom" href="'+esc(SETTINGS.zoom_url)+'" target="_blank" rel="noopener">🎥 Подключиться в Zoom</a></div>';
+    h+='</div>';
+    return h;
   }
 
   // Содержимое шага «Бонус за финиш»: чек-лист (без видео) или мини-курс (с видео).

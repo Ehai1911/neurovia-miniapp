@@ -142,8 +142,9 @@
       '<div class="stat">'+
       tile(s.total,'участников')+tile(s.completed,'завершили')+tile(s.avgProgress+'%','сред. прогресс')+tile(s.tasksDone+'/'+s.tasksTotal,'задания')+
       '</div>'+
-      '<div class="row" style="margin:0 0 10px"><button class="btn" onclick="editDates()">✎ Даты и приём потока</button></div>'+
+      '<div class="row" style="margin:0 0 10px;gap:8px;flex-wrap:wrap"><button class="btn" onclick="editDates()">✎ Даты и приём</button><button class="btn" onclick="editSchedule()">🗓 Расписание</button></div>'+
       '<div id="datesbox"></div>'+
+      '<div id="schedbox"></div>'+
       '<h2>Участники</h2>';
     var studs=j.participants.filter(function(p){return p.role==='student';});
     if(studs.length===0) h+='<div class="muted">Пока никто не зашёл.</div>';
@@ -229,6 +230,38 @@
     var b={cohort_id:CUR.id, starts_on:(document.getElementById('d-start').value||null), ends_on:(document.getElementById('d-end').value||null), is_active:document.getElementById('d-active').checked};
     var j=await apiPost('/api/admin/update-cohort',b);
     if(j.ok){ openCohort(CUR.id, CUR.title); } else alert(j.error||'Ошибка');
+  };
+
+  // Расписание потока (список для студентов)
+  var SCHED=[];
+  window.editSchedule = async function(){
+    var box=document.getElementById('schedbox'); if(!box||!CUR) return;
+    box.innerHTML='<div class="muted">Загрузка…</div>';
+    var j=await apiGet('/api/admin/cohorts');
+    var c=((j.cohorts||[]).filter(function(x){return x.id===CUR.id;})[0])||{};
+    SCHED=Array.isArray(c.schedule)?c.schedule.slice():[];
+    if(SCHED.length===0) SCHED=[{title:'',at:'',note:''}];
+    renderSched();
+  };
+  window.renderSched = function(){
+    var box=document.getElementById('schedbox'); if(!box) return;
+    var h='<div class="card"><h3>Расписание потока</h3><div class="muted" style="margin-bottom:8px">Студенты увидят этот список на вкладке «Занятия».</div>';
+    SCHED.forEach(function(s,i){
+      h+='<div class="row" style="gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">'+
+        '<input placeholder="Название (напр. День 1)" value="'+esc(s.title||'')+'" oninput="SCHED['+i+'].title=this.value" style="flex:1;min-width:130px;padding:6px;border-radius:8px">'+
+        '<input type="datetime-local" value="'+esc(s.at||'')+'" oninput="SCHED['+i+'].at=this.value" style="padding:6px;border-radius:8px">'+
+        '<input placeholder="заметка" value="'+esc(s.note||'')+'" oninput="SCHED['+i+'].note=this.value" style="flex:1;min-width:110px;padding:6px;border-radius:8px">'+
+        '<button class="btn" onclick="SCHED.splice('+i+',1);renderSched()">✕</button>'+
+      '</div>';
+    });
+    h+='<div class="row" style="gap:8px;margin-top:6px"><button class="btn" onclick="SCHED.push({title:\'\',at:\'\',note:\'\'});renderSched()">+ Добавить пункт</button>'+
+       '<button class="btn primary" onclick="saveSchedule()">Сохранить расписание</button></div></div>';
+    box.innerHTML=h;
+  };
+  window.saveSchedule = async function(){
+    var clean=SCHED.filter(function(s){return (s.title&&s.title.trim())||(s.at&&s.at.trim());});
+    var j=await apiPost('/api/admin/update-cohort',{cohort_id:CUR.id, schedule:clean});
+    if(j.ok){ alert('Расписание сохранено ✓'); } else alert(j.error||'Ошибка');
   };
 
   // Точка входа: есть токен/dev/Telegram → в кабинет; иначе — форма логина.

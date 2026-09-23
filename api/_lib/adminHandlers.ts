@@ -46,7 +46,7 @@ export async function cohorts(req: any, res: any) {
       const { data: enr } = await supabase.from('enrollments').select('cohort_id, role').in('cohort_id', ids).eq('role', 'student');
       (enr || []).forEach((e: any) => { countBy[e.cohort_id] = (countBy[e.cohort_id] || 0) + 1; });
     }
-    const cohortsOut = (list || []).map((c: any) => ({ id: c.id, title: c.title, starts_on: c.starts_on, ends_on: c.ends_on, is_active: c.is_active, students: countBy[c.id] || 0 }));
+    const cohortsOut = (list || []).map((c: any) => ({ id: c.id, title: c.title, starts_on: c.starts_on, ends_on: c.ends_on, is_active: c.is_active, schedule: c.schedule || [], students: countBy[c.id] || 0 }));
     return res.status(200).json({ ok: true, cohorts: cohortsOut });
   } catch (e: any) { return res.status(401).json({ ok: false, error: String(e?.message || e) }); }
 }
@@ -207,6 +207,12 @@ export async function updateCohort(req: any, res: any) {
     if ('starts_on' in b) patch.starts_on = b.starts_on || null;
     if ('ends_on' in b) patch.ends_on = b.ends_on || null;
     if ('is_active' in b) patch.is_active = !!b.is_active;
+    if ('schedule' in b) {
+      const arr = Array.isArray(b.schedule) ? b.schedule : [];
+      patch.schedule = arr
+        .map((x: any) => ({ title: String(x?.title || '').slice(0, 200), at: String(x?.at || '').slice(0, 40), note: String(x?.note || '').slice(0, 300) }))
+        .filter((x: any) => x.title || x.at);
+    }
     if (Object.keys(patch).length === 0) return res.status(400).json({ ok: false, error: 'nothing to update' });
     const { error } = await supabase.from('cohorts').update(patch).eq('id', cohort_id);
     if (error) return res.status(500).json({ ok: false, error: error.message });

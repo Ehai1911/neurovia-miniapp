@@ -12,12 +12,13 @@ export type TgUser = {
 // Проверка подписи Telegram initData (HMAC-SHA256 по токену бота).
 // Личность берём ТОЛЬКО отсюда — никогда из тела запроса.
 export function verifyInitData(initData: string): TgUser {
-  const botToken = process.env.BOT_TOKEN as string;
+  const botToken = (process.env.BOT_TOKEN as string || '').trim();
   if (!botToken) throw new Error('BOT_TOKEN not set');
   const params = new URLSearchParams(initData);
   const hash = params.get('hash');
   if (!hash) throw new Error('no hash in initData');
   params.delete('hash');
+  params.delete('signature'); // новые клиенты шлют Ed25519-подпись — в HMAC-проверку не входит
 
   const pairs: string[] = [];
   const keys = Array.from(params.keys()).sort();

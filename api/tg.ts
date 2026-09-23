@@ -45,6 +45,9 @@ export default async function handler(req: any, res: any) {
         await setSetting('review_channel_id', id);
         return res.status(200).json({ ok: true, review_channel_id: id });
       }
+      if (action === 'setcommands') {
+        return res.status(200).json(await tg('setMyCommands', { commands: [{ command: 'kabinet', description: 'Кабинет куратора' }] }));
+      }
       if (action === 'testpost') {
         const id = await getSetting('review_channel_id');
         if (!id) return res.status(400).json({ ok: false, error: 'review_channel_id not set' });
@@ -75,8 +78,22 @@ export default async function handler(req: any, res: any) {
     const from = msg.from || {};
     const chatId = msg.chat?.id;
 
+    const text = (typeof msg.text === 'string') ? msg.text.trim() : '';
+
+    // /kabinet → кнопка-вход в кабинет куратора (мини-приложение в Telegram)
+    if (text.startsWith('/kabinet')) {
+      const host = req.headers['x-forwarded-host'] || req.headers['host'];
+      const base = 'https://' + host;
+      await tg('sendMessage', {
+        chat_id: chatId,
+        text: '🎛 Кабинет куратора\nОткройте кнопкой ниже и войдите по логину и паролю (потом вход запомнится).',
+        reply_markup: { inline_keyboard: [[{ text: '🎛 Открыть кабинет куратора', web_app: { url: base + '/admin.html' } }]] },
+      });
+      return res.status(200).json({ ok: true });
+    }
+
     // /start → приглашение прислать видео
-    if (typeof msg.text === 'string' && msg.text.trim().startsWith('/start')) {
+    if (text.startsWith('/start')) {
       await tg('sendMessage', { chat_id: chatId, text: 'Пришлите сюда ваш видеоотзыв 🎥 — просто прикрепите видео в этот чат.' });
       return res.status(200).json({ ok: true });
     }

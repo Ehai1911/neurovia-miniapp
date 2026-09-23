@@ -242,7 +242,7 @@
   function refresh(){ return api('/api/steps').then(function(j){ if(j.ok){ mergeServer(j); renderLessons(); renderProgress(); } return j; }); }
 
   function renderLessons(){
-    var host = document.getElementById("lessons"); host.innerHTML = "";
+    var host = document.getElementById("lessons"); host.innerHTML = ""; host.classList.remove("focus");
     LESSONS.forEach(function(L){
       var future = (L.type==="day" || L.type==="feedback") && !L.avail;
       if(future){

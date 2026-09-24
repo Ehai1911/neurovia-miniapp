@@ -97,7 +97,7 @@ export default async function handler(req: any, res: any) {
     // /start → приглашение прислать видео (по deep-link ?start=video) или приветствие
     if (text.startsWith('/start')) {
       if (/\bvideo\b/.test(text)) {
-        await sendWithApp(chatId, 'Пришлите сюда ваш видеоотзыв 🎥 — просто прикрепите видео в этот чат.', base);
+        await sendWithApp(chatId, 'Отлично! Прикрепите сюда ваш видеоотзыв 🎥 — просто отправьте видео в этот чат, и мы его получим.', base);
       } else {
         await sendWithApp(chatId,
           'Здравствуйте! Добро пожаловать на интенсив «Neurovia Sprint — От интереса к оплате» 🚀\n\nЗдесь всё, что нужно для участия: расписание живых встреч, ссылки на Zoom, задания и отметка посещения.\n\nЧтобы попасть в приложение — нажмите кнопку ниже 👇', base);

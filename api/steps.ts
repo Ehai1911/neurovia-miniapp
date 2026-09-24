@@ -2,6 +2,10 @@ import { getAuthedUser } from './_lib/auth';
 import { getOrCreateUser, ensureEnrollment, COURSE_KEY, displayName } from './_lib/db';
 import { supabase } from './_lib/supabase';
 
+// ⚠️ ВРЕМЕННО ДЛЯ ТЕСТА: все дни/бонус/обратная связь открыты.
+// Чтобы закрыть замочки обратно — поставить false (одна строка).
+const OPEN_ALL = true;
+
 export default async function handler(req: any, res: any) {
   try {
     const tg = getAuthedUser(req);
@@ -45,9 +49,11 @@ export default async function handler(req: any, res: any) {
     let prevDone = true; // intro считается «пройденным» для гейта первого дня
     for (const s of steps || []) {
       let available = true;
-      if (s.type === 'day') available = prevDone;
-      else if (s.type === 'feedback') available = allDaysDone;
-      else if (s.type === 'bonus') available = allDaysDone;
+      if (!OPEN_ALL) {
+        if (s.type === 'day') available = prevDone;
+        else if (s.type === 'feedback') available = allDaysDone;
+        else if (s.type === 'bonus') available = allDaysDone;
+      }
 
       const done = taskMap.get(s.id) === true;
       const questions = (s.step_questions || [])

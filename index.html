@@ -115,6 +115,16 @@
   .member .mr{font-size:12px;color:var(--ink-faint);}
   .role{margin-left:auto;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent-ink);}
 
+  /* строки расписания */
+  .schedrow{display:flex;width:100%;justify-content:space-between;gap:10px;align-items:center;text-align:left;
+    padding:10px 2px;border:none;border-top:1px solid var(--app-2);background:none;color:inherit;font:inherit;cursor:pointer;}
+  .schedrow.static{cursor:default;}
+  .schedrow .schl{display:flex;flex-direction:column;min-width:0;}
+  .schedrow .schr{display:flex;align-items:center;gap:8px;white-space:nowrap;}
+  .schedrow .when{font-size:12.5px;color:var(--ink-faint);}
+  .schedrow .chev{font-size:20px;line-height:1;color:var(--accent-ink);opacity:.6;}
+  .schedrow:not(.static):active{background:var(--app-2);border-radius:10px;}
+
   /* tabs */
   .tabs{display:flex;gap:4px;margin:8px 12px calc(12px + env(safe-area-inset-bottom));padding:5px;
     border:1px solid #33507A;border-radius:18px;background:#1C2E4C;
@@ -270,7 +280,7 @@
     LESSONS.forEach(function(L){
       var future = (L.type==="day" || L.type==="feedback") && !L.avail;
       if(future){
-        var cf = document.createElement("div"); cf.className="card";
+        var cf = document.createElement("div"); cf.className="card"; cf.id="lesson-"+L.id;
         var openTxt = (L.type==="day") ? ((L.id-1>=1) ? ("Откроется после завершения Дня "+(L.id-1)) : "Откроется после Старта") : "Откроется после завершения всех заданий";
         cf.innerHTML = '<div class="wk"><span class="w">'+LABELS[L.type]+'</span></div>'+
           '<h3>'+esc(L.topic)+'</h3>'+
@@ -278,7 +288,7 @@
         host.appendChild(cf); return;
       }
       var att = !!state.att[L.id], done = !!state.task[L.id], ans = state.ans[L.id] || [];
-      var c = document.createElement("div");
+      var c = document.createElement("div"); c.id="lesson-"+L.id;
       c.className = "card" + ((L.type==="day" && (att||done))?" done":"");
       var h = '<div class="wk"><span class="w">'+LABELS[L.type]+'</span>'+
               (L.date? '<span class="date">'+esc(L.date)+'</span>':'')+'</div>'+
@@ -368,17 +378,38 @@
     var hh=('0'+d.getHours()).slice(-2), mm=('0'+d.getMinutes()).slice(-2);
     return d.getDate()+' '+mon+', '+hh+':'+mm;
   }
+  // По названию строки расписания определяем, к какому занятию вести (0=Старт,1..3=дни,4=обратная связь,5=бонус).
+  function schedTargetId(it){
+    var s=((it&&it.title||'')+' '+(it&&it.note||'')).toLowerCase();
+    if(s.indexOf('старт')>=0 || s.indexOf('знаком')>=0) return 0;
+    if(s.indexOf('итог')>=0 || s.indexOf('финал')>=0 || s.indexOf('обратн')>=0) return 4;
+    if(s.indexOf('бонус')>=0) return 5;
+    var m=s.match(/день\s*(\d+)/); if(m){ var n=parseInt(m[1],10); if(n>=1&&n<=3) return n; }
+    return null;
+  }
   function scheduleHTML(){
     if(!SCHEDULE || !SCHEDULE.length) return '';
     var now=Date.now(), nextIdx=-1, best=Infinity;
     var items=SCHEDULE.map(function(s){ var t=s.at?Date.parse(s.at):NaN; return {title:s.title,note:s.note,at:s.at,ts:t}; });
     items.forEach(function(it,i){ if(!isNaN(it.ts)&&it.ts>=now&&(it.ts-now)<best){ best=it.ts-now; nextIdx=i; } });
     var h='<div class="card"><div class="wk"><span class="w">расписание</span></div><h3>🗓 Живые встречи</h3>';
+    // «Старт» вверху — если в расписании его ещё нет.
+    var hasStart=items.some(function(it){ return schedTargetId(it)===0; });
+    if(!hasStart){
+      h+='<button class="schedrow" data-goto="0"><span class="schl"><b>Старт. Добро пожаловать</b>'+
+         '<span class="hint" style="margin:2px 0 0">Знакомство со спринтом</span></span>'+
+         '<span class="schr"><span class="chev">›</span></span></button>';
+    }
     items.forEach(function(it,i){
       var when=it.at?fmtWhen(it.ts,it.at):'';
-      h+='<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--app-2)">'+
-         '<div><b>'+esc(it.title||'Встреча')+'</b>'+(i===nextIdx?' <span class="chip ok">ближайшая</span>':'')+(it.note?('<div class="hint" style="margin:2px 0 0">'+esc(it.note)+'</div>'):'')+'</div>'+
-         '<div class="hint" style="white-space:nowrap">'+esc(when)+'</div></div>';
+      var tid=schedTargetId(it);
+      var left='<span class="schl"><b>'+esc(it.title||'Встреча')+'</b>'+(i===nextIdx?' <span class="chip ok">ближайшая</span>':'')+(it.note?('<div class="hint" style="margin:2px 0 0">'+esc(it.note)+'</div>'):'')+'</span>';
+      var right='<span class="schr"><span class="when">'+esc(when)+'</span>'+(tid!==null?'<span class="chev">›</span>':'')+'</span>';
+      if(tid!==null){
+        h+='<button class="schedrow" data-goto="'+tid+'">'+left+right+'</button>';
+      } else {
+        h+='<div class="schedrow static">'+left+right+'</div>';
+      }
     });
     if(SETTINGS.zoom_url) h+='<div class="row" style="margin-top:12px"><a class="btn btn-zoom" href="'+esc(SETTINGS.zoom_url)+'" target="_blank" rel="noopener">🎥 Подключиться в Zoom</a></div>';
     h+='</div>';
@@ -526,6 +557,18 @@
       return;
     }
     else if(t.getAttribute("data-link")){ var gl=SETTINGS.tg_group_url; if(gl){ if(tgw&&tgw.openTelegramLink&&gl.indexOf('t.me')>=0){tgw.openTelegramLink(gl);}else if(tgw&&tgw.openLink){tgw.openLink(gl);}else{window.open(gl,'_blank','noopener');} } else { alert("Ссылка на Telegram-группу появится, когда её добавит куратор."); } return; }
+    else if(t.getAttribute("data-goto")!==null){
+      var gid=+t.getAttribute("data-goto");
+      var lt=document.querySelector('.tab[data-scr="lessons"]');
+      if(lt && lt.getAttribute('aria-selected')!=='true'){ lt.click(); }
+      var goCard=document.getElementById('lesson-'+gid);
+      if(goCard){
+        try{ goCard.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){ goCard.scrollIntoView(); }
+        var tog=goCard.querySelector('[data-toggle]');
+        if(tog && tog.getAttribute('aria-expanded')!=='true'){ tog.click(); }
+      }
+      return;
+    }
     else if(t.getAttribute("data-shop")){
       var su=(SETTINGS.shop_url||SHOP_URL_DEFAULT);
       if(tgw&&tgw.openLink){ tgw.openLink(su); } else { window.open(su,'_blank','noopener'); }

@@ -166,6 +166,11 @@
       <div id="library"></div>
     </section>
 
+    <section id="scr-shop" hidden>
+      <h2>Магазин</h2>
+      <div id="shop"></div>
+    </section>
+
     <section id="scr-team" hidden>
       <h2>Поддержка</h2>
       <div id="team"></div>
@@ -176,6 +181,7 @@
     <button class="tab" role="tab" aria-selected="true" data-scr="lessons"><span class="i">🗓️</span>Занятия</button>
     <button class="tab" role="tab" aria-selected="false" data-scr="library"><span class="i">📚</span>Библиотека</button>
     <button class="tab" role="tab" aria-selected="false" data-scr="progress"><span class="i">📊</span>Прогресс</button>
+    <button class="tab" role="tab" aria-selected="false" data-scr="shop"><span class="i">🛍️</span>Магазин</button>
     <button class="tab" role="tab" aria-selected="false" data-scr="team"><span class="i">🆘</span>Поддержка</button>
   </div>
 </div>
@@ -205,6 +211,8 @@
   ];
   // Бот для приёма видеоотзывов: студент отправляет видео прямо в чат с ботом.
   var BOT_USERNAME = "neurovia_sprint_bot";
+  // Магазин: ссылка по умолчанию (можно переопределить настройкой shop_url).
+  var SHOP_URL_DEFAULT = "https://claude.ai/code/artifact/5eef4174-0797-4e00-b175-56168015d519?sk=0Gp4cCcLetd1gOzPAq7yyw";
 
   // ---- связь с сервером (авторизация: initData в Telegram, ?tg= в браузере для dev) ----
   var tgw = window.Telegram && window.Telegram.WebApp;
@@ -427,6 +435,16 @@
     });
   }
 
+  function renderShop(){ // вкладка «Магазин»
+    var host = document.getElementById("shop"); host.innerHTML = "";
+    var d = document.createElement("div"); d.className="card";
+    d.innerHTML = '<div class="wk"><span class="w">магазин</span></div>'+
+      '<h3>🛍️ Магазин материалов</h3>'+
+      '<p class="hint">Каталог курсов и материалов: от разбора темы до готовых воронок продаж. Открывается в отдельном окне.</p>'+
+      '<div class="row" style="margin-top:12px"><button class="btn primary" data-shop="1">Открыть каталог</button></div>';
+    host.appendChild(d);
+  }
+
   function renderTeam(){ // вкладка «Поддержка»
     var host = document.getElementById("team"); host.innerHTML = "";
     var d = document.createElement("div"); d.className="card";
@@ -508,6 +526,11 @@
       return;
     }
     else if(t.getAttribute("data-link")){ var gl=SETTINGS.tg_group_url; if(gl){ if(tgw&&tgw.openTelegramLink&&gl.indexOf('t.me')>=0){tgw.openTelegramLink(gl);}else if(tgw&&tgw.openLink){tgw.openLink(gl);}else{window.open(gl,'_blank','noopener');} } else { alert("Ссылка на Telegram-группу появится, когда её добавит куратор."); } return; }
+    else if(t.getAttribute("data-shop")){
+      var su=(SETTINGS.shop_url||SHOP_URL_DEFAULT);
+      if(tgw&&tgw.openLink){ tgw.openLink(su); } else { window.open(su,'_blank','noopener'); }
+      return;
+    }
     else if(t.getAttribute("data-vid")){
       var vlink = "https://t.me/"+BOT_USERNAME+"?start=video";
       if(tgw && tgw.openTelegramLink){ tgw.openTelegramLink(vlink); } else { window.open(vlink, '_blank', 'noopener'); }
@@ -538,11 +561,12 @@
     tab.addEventListener("click", function(){
       tabs.forEach(function(x){ x.setAttribute("aria-selected","false"); });
       tab.setAttribute("aria-selected","true");
-      ["lessons","library","progress","team"].forEach(function(s){
+      ["lessons","library","progress","shop","team"].forEach(function(s){
         document.getElementById("scr-"+s).hidden = (s !== tab.getAttribute("data-scr"));
       });
       if(tab.getAttribute("data-scr")==="progress") renderProgress();
       if(tab.getAttribute("data-scr")==="library") renderLibrary();
+      if(tab.getAttribute("data-scr")==="shop") renderShop();
       if(tab.getAttribute("data-scr")==="team") renderTeam();
     });
   });

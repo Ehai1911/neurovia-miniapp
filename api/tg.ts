@@ -86,6 +86,24 @@ export default async function handler(req: any, res: any) {
         }
         return res.status(200).json({ ok: !!sent?.ok, sent, pinned });
       }
+      if (action === 'videoindex') {
+        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
+        const link = (n: number) => 'https://t.me/prorostonline/' + n;
+        const sent = await tg('sendMessage', {
+          chat_id: channel,
+          text: '📹 Записи встреч\n\nВыбери день 👇',
+          reply_markup: {
+            inline_keyboard: [[
+              { text: '🎬 День 1', url: link(18) },
+              { text: '🎬 День 2', url: link(19) },
+              { text: '🎬 День 3', url: link(20) },
+            ]],
+          },
+        });
+        const mid = sent?.result?.message_id;
+        if (sent?.ok && mid) await setSetting('video_index_msg', String(mid));
+        return res.status(200).json({ ok: !!sent?.ok, message_id: mid, post: channel + '/' + mid, sent });
+      }
       if (action === 'setwebhook') {
         const secret = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 40);
         await setSetting('tg_webhook_secret', secret);

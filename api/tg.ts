@@ -105,6 +105,22 @@ export default async function handler(req: any, res: any) {
         const key = String(req.query.key || '');
         return res.status(200).json({ ok: true, key, value: await getSetting(key) });
       }
+      if (action === 'learnpost') {
+        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
+        const appLink = 'https://t.me/neurovia_sprint_bot?startapp';
+        const sent = await tg('sendMessage', {
+          chat_id: channel,
+          text: '🎓 Обучение — интенсив «От интереса к оплате»\n\n3 дня практики: как довести клиента от первого касания до оплаты. Расписание, задания и бонусы — внутри.\n\nОткрывай кнопкой ниже 👇',
+          reply_markup: { inline_keyboard: [[{ text: '🎓 Открыть обучение', url: appLink }]] },
+        });
+        let pinned: any = null;
+        const mid = sent?.result?.message_id;
+        if (sent?.ok && mid) {
+          pinned = await tg('pinChatMessage', { chat_id: channel, message_id: mid, disable_notification: true });
+          await setSetting('learn_post_msg', String(mid));
+        }
+        return res.status(200).json({ ok: !!sent?.ok, message_id: mid, sent, pinned });
+      }
       if (action === 'shopsoon') {
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
         const sent = await tg('sendMessage', {

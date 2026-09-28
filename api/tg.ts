@@ -105,6 +105,13 @@ export default async function handler(req: any, res: any) {
         const key = String(req.query.key || '');
         return res.status(200).json({ ok: true, key, value: await getSetting(key) });
       }
+      if (action === 'setmenubutton') {
+        const url = String(req.query.url || base + '/');
+        const btnText = String(req.query.text || '🎓 Обучение');
+        return res.status(200).json(await tg('setChatMenuButton', {
+          menu_button: { type: 'web_app', text: btnText, web_app: { url } },
+        }));
+      }
       if (action === 'learnpost') {
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
         const appLink = 'https://t.me/neurovia_sprint_bot?startapp';

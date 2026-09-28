@@ -312,9 +312,7 @@
                '<h4>Как проходит спринт</h4>'+
                '<ul><li>📅 3 дня онлайн, в 19:00, в Zoom.</li>'+
                '<li>🎥 Актуальные даты — на лендинге.</li>'+
-               '<li>💬 Ссылка на Zoom приходит в Telegram-группу — обязательно вступи.</li></ul>'+
-               '<div class="row"><button class="btn btn-tg" data-link="tg">💬 Telegram-группа</button>'+
-               (SETTINGS.zoom_url?('<a class="btn btn-zoom" href="'+esc(SETTINGS.zoom_url)+'" target="_blank" rel="noopener">🎥 Подключиться в Zoom</a>'):'')+'</div>'+
+               '<li>💬 Ссылка на Zoom и Telegram-группа — внутри каждого дня, после оплаты.</li></ul>'+
                '<h4>Важно: тетради</h4>'+
                '<ul><li>Три тетради связаны — одна вытекает из другой.</li>'+
                '<li>Каждую скачай и заполни сам(а) — это личный рабочий документ.</li>'+
@@ -330,6 +328,8 @@
         if(att||done){ h += '<div class="row" style="margin-top:6px">'+(att?'<span class="chip ok">✓ Вы были</span> ':'')+(done?'<span class="chip ok">✓ Задание</span>':'')+'</div>'; }
         h += '<div class="row"><button class="btn primary" data-toggle="'+L.id+'" aria-expanded="false">Открыть материалы</button></div>';
         h += '<div class="cardbody mat" id="body-'+L.id+'" hidden>';
+        h += '<div class="row"><button class="btn btn-tg" data-link="tg">💬 Telegram-группа</button>'+
+             (SETTINGS.zoom_url?('<a class="btn btn-zoom" href="'+esc(SETTINGS.zoom_url)+'" target="_blank" rel="noopener">🎥 Подключиться в Zoom</a>'):'')+'</div>';
         h += '<div class="row"><button class="btn" data-tetrad="'+L.id+'">📄 Тетрадь дня</button>'+
              (att? '<span class="chip ok">✓ Вы были</span>' : '') + '</div>';
         if(!att){

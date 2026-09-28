@@ -55,6 +55,30 @@ export default async function handler(req: any, res: any) {
         if (!id) return res.status(400).json({ ok: false, error: 'review_channel_id not set' });
         return res.status(200).json(await tg('sendMessage', { chat_id: id, text: '✅ Тест: бот может писать в канал «Видеоотзывы».' }));
       }
+      if (action === 'postmenu') {
+        const channel = String(req.query.channel || '@prorostonline');
+        const appLink = 'https://t.me/neurovia_sprint_bot?startapp';
+        const botLink = 'https://t.me/neurovia_sprint_bot';
+        const shop = (await getSetting('shop_url')) || 'https://claude.ai/code/artifact/5eef4174-0797-4e00-b175-56168015d519?sk=0Gp4cCcLetd1gOzPAq7yyw';
+        const sent = await tg('sendMessage', {
+          chat_id: channel,
+          text: '📌 Меню\n\nКурсы, магазин и поддержка — по кнопкам ниже 👇',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🚀 Открыть приложение', url: appLink }],
+              [{ text: '🛍 Магазин', url: shop }],
+              [{ text: '💬 Поддержка', url: botLink }],
+            ],
+          },
+        });
+        let pinned: any = null;
+        const mid = sent?.result?.message_id;
+        if (sent?.ok && mid) {
+          pinned = await tg('pinChatMessage', { chat_id: channel, message_id: mid, disable_notification: true });
+          await setSetting('main_channel_id', channel);
+        }
+        return res.status(200).json({ ok: !!sent?.ok, sent, pinned });
+      }
       if (action === 'setwebhook') {
         const secret = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 40);
         await setSetting('tg_webhook_secret', secret);

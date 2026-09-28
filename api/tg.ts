@@ -55,27 +55,34 @@ export default async function handler(req: any, res: any) {
         if (!id) return res.status(400).json({ ok: false, error: 'review_channel_id not set' });
         return res.status(200).json(await tg('sendMessage', { chat_id: id, text: '✅ Тест: бот может писать в канал «Видеоотзывы».' }));
       }
-      if (action === 'postmenu') {
-        const channel = String(req.query.channel || '@prorostonline');
+      if (action === 'postmenu' || action === 'editmenu') {
+        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
         const appLink = 'https://t.me/neurovia_sprint_bot?startapp';
         const botLink = 'https://t.me/neurovia_sprint_bot';
         const shop = (await getSetting('shop_url')) || 'https://claude.ai/code/artifact/5eef4174-0797-4e00-b175-56168015d519?sk=0Gp4cCcLetd1gOzPAq7yyw';
-        const sent = await tg('sendMessage', {
-          chat_id: channel,
-          text: '📌 Меню\n\nКурсы, магазин и поддержка — по кнопкам ниже 👇',
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '🚀 Открыть приложение', url: appLink }],
-              [{ text: '🛍 Магазин', url: shop }],
-              [{ text: '💬 Поддержка', url: botLink }],
-            ],
-          },
-        });
+        const video = String(req.query.video || (await getSetting('video_url')) || 'https://t.me/prorostonline');
+        const text = '📌 Меню\n\nОбучение, видео, магазин и поддержка — по кнопкам ниже 👇';
+        const keyboard = {
+          inline_keyboard: [
+            [{ text: '🎓 Обучение', url: appLink }],
+            [{ text: '🎬 Видео', url: video }],
+            [{ text: '🛍 Магазин', url: shop }],
+            [{ text: '💬 Поддержка', url: botLink }],
+          ],
+        };
+        if (action === 'editmenu') {
+          const mid = Number(req.query.message_id || (await getSetting('main_channel_menu_msg')) || 0);
+          if (!mid) return res.status(400).json({ ok: false, error: 'message_id not known' });
+          const edited = await tg('editMessageText', { chat_id: channel, message_id: mid, text, reply_markup: keyboard });
+          return res.status(200).json({ ok: !!edited?.ok, edited });
+        }
+        const sent = await tg('sendMessage', { chat_id: channel, text, reply_markup: keyboard });
         let pinned: any = null;
         const mid = sent?.result?.message_id;
         if (sent?.ok && mid) {
           pinned = await tg('pinChatMessage', { chat_id: channel, message_id: mid, disable_notification: true });
           await setSetting('main_channel_id', channel);
+          await setSetting('main_channel_menu_msg', String(mid));
         }
         return res.status(200).json({ ok: !!sent?.ok, sent, pinned });
       }

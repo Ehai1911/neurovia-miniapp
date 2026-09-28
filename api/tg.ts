@@ -107,6 +107,16 @@ export default async function handler(req: any, res: any) {
           menu_button: { type: 'web_app', text: btnText, web_app: { url } },
         }));
       }
+      if (action === 'addmenubtn') {
+        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
+        const mid = Number(req.query.message_id || 0);
+        if (!mid) return res.status(400).json({ ok: false, error: 'message_id required' });
+        const menuMsg = Number(await getSetting('main_channel_menu_msg')) || 15;
+        return res.status(200).json(await tg('editMessageReplyMarkup', {
+          chat_id: channel, message_id: mid,
+          reply_markup: { inline_keyboard: [[{ text: '☰ Меню', url: 'https://t.me/c/3268173530/' + menuMsg }]] },
+        }));
+      }
       if (action === 'learnpost') {
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
         const appLink = 'https://t.me/neurovia_sprint_bot?startapp';

@@ -186,8 +186,27 @@ export default async function handler(req: any, res: any) {
     }
 
     const update = req.body || {};
+
+    // Авто-кнопка «☰ Меню» на каждый новый пост канала (кроме служебного меню).
+    const cp = update.channel_post;
+    if (cp && cp.chat && cp.message_id) {
+      const mainCh = await getSetting('main_channel_id');
+      if (mainCh && String(cp.chat.id) === String(mainCh)) {
+        const hasBtns = !!(cp.reply_markup && cp.reply_markup.inline_keyboard);
+        const isContent = !!(cp.video || cp.photo || cp.document || cp.animation || cp.text || cp.caption);
+        const menuMsg = Number(await getSetting('main_channel_menu_msg')) || 0;
+        if (!hasBtns && isContent && cp.message_id !== menuMsg) {
+          await tg('editMessageReplyMarkup', {
+            chat_id: cp.chat.id, message_id: cp.message_id,
+            reply_markup: { inline_keyboard: [[{ text: '☰ Меню', url: 'https://t.me/c/3268173530/' + menuMsg }]] },
+          });
+        }
+      }
+      return res.status(200).json({ ok: true });
+    }
+
     const msg = update.message;
-    if (!msg) return res.status(200).json({ ok: true }); // channel_post и пр. — игнор
+    if (!msg) return res.status(200).json({ ok: true }); // прочие апдейты — игнор
 
     const from = msg.from || {};
     const chatId = msg.chat?.id;

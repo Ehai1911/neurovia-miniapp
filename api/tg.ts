@@ -59,7 +59,11 @@ export default async function handler(req: any, res: any) {
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
         const appLink = 'https://t.me/neurovia_sprint_bot?startapp';
         const botLink = 'https://t.me/neurovia_sprint_bot';
-        const shop = (await getSetting('shop_url')) || 'https://claude.ai/code/artifact/5eef4174-0797-4e00-b175-56168015d519?sk=0Gp4cCcLetd1gOzPAq7yyw';
+        const shopReady = (await getSetting('shop_ready')) === '1';
+        const shop = String(req.query.shop || (await getSetting('shop_url')) || (await getSetting('shop_soon_url')) || 'https://t.me/prorostonline');
+        const shopBtn = shopReady
+          ? { text: '🛍 Магазин', url: shop }
+          : { text: '🛍 Магазин (скоро)', url: shop };
         const vlink = (n: number) => 'https://t.me/prorostonline/' + n;
         const text = '📌 Меню\n\nОбучение, магазин и поддержка — по кнопкам ниже.\n🎬 Записи встреч — Дни 1–3 👇';
         const keyboard = {
@@ -70,7 +74,7 @@ export default async function handler(req: any, res: any) {
               { text: '🎬 День 2', url: vlink(19) },
               { text: '🎬 День 3', url: vlink(20) },
             ],
-            [{ text: '🛍 Магазин', url: shop }],
+            [shopBtn],
             [{ text: '💬 Поддержка', url: botLink }],
           ],
         };
@@ -89,6 +93,16 @@ export default async function handler(req: any, res: any) {
           await setSetting('main_channel_menu_msg', String(mid));
         }
         return res.status(200).json({ ok: !!sent?.ok, sent, pinned });
+      }
+      if (action === 'shopsoon') {
+        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
+        const sent = await tg('sendMessage', {
+          chat_id: channel,
+          text: '🛍 Магазин материалов\n\nОткрытие совсем скоро 🔜\nСледите за анонсами в канале.',
+        });
+        const mid = sent?.result?.message_id;
+        if (sent?.ok && mid) await setSetting('shop_soon_url', 'https://t.me/prorostonline/' + mid);
+        return res.status(200).json({ ok: !!sent?.ok, message_id: mid, sent });
       }
       if (action === 'deletepost') {
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');

@@ -49,7 +49,10 @@ export default async function handler(req: any, res: any) {
     let prevDone = true; // intro считается «пройденным» для гейта первого дня
     for (const s of steps || []) {
       let available = true;
-      if (!OPEN_ALL) {
+      if (!enr) {
+        // Гость (не оплатил): открыт только Старт, остальное под замком.
+        available = (s.type === 'intro');
+      } else if (!OPEN_ALL) {
         if (s.type === 'day') available = prevDone;
         else if (s.type === 'feedback') available = allDaysDone;
         else if (s.type === 'bonus') available = allDaysDone;

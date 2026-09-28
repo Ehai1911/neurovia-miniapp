@@ -94,6 +94,17 @@ export default async function handler(req: any, res: any) {
         }
         return res.status(200).json({ ok: !!sent?.ok, sent, pinned });
       }
+      if (action === 'setsetting') {
+        const key = String(req.query.key || '');
+        const value = String(req.query.value || '');
+        if (!key) return res.status(400).json({ ok: false, error: 'key required' });
+        await setSetting(key, value);
+        return res.status(200).json({ ok: true, key, value });
+      }
+      if (action === 'getsetting') {
+        const key = String(req.query.key || '');
+        return res.status(200).json({ ok: true, key, value: await getSetting(key) });
+      }
       if (action === 'shopsoon') {
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
         const sent = await tg('sendMessage', {

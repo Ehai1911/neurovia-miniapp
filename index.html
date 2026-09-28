@@ -231,14 +231,14 @@
   function authPath(p){ if(!(tgw && tgw.initData)){ p += (p.indexOf('?')>=0?'&':'?')+'tg='+encodeURIComponent(_qs.get('tg')||'100000001'); } return p; }
   function api(p,opts){ opts=opts||{}; return fetch(authPath(p),{method:opts.method||'GET',headers:authHeaders(),body:opts.body?JSON.stringify(opts.body):undefined}).then(function(r){return r.json();}); }
 
-  var SETTINGS={}, COHORT=null, BONUS_AVAIL=false, BONUS_COURSE=false, videoLocal=false, SCHEDULE=[], ME=null;
+  var SETTINGS={}, COHORT=null, BONUS_AVAIL=false, BONUS_COURSE=false, videoLocal=false, SCHEDULE=[], ME=null, ENROLLED=true;
   var state = {att:{},task:{},ans:{}};
   function esc(x){ return String(x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   var LABELS = {intro:"старт", day:"занятие", feedback:"обратная связь", locked:"после интенсива"};
 
   // Слить серверные шаги (/api/steps) в локальные LESSONS + состояние.
   function mergeServer(j){
-    SETTINGS=j.settings||{}; COHORT=j.cohort||null; BONUS_COURSE=!!j.bonus_course; videoLocal=false; SCHEDULE=Array.isArray(j.schedule)?j.schedule:[]; ME=j.me||null;
+    SETTINGS=j.settings||{}; COHORT=j.cohort||null; BONUS_COURSE=!!j.bonus_course; videoLocal=false; SCHEDULE=Array.isArray(j.schedule)?j.schedule:[]; ME=j.me||null; ENROLLED=!!j.enrolled;
     var byPos={}; (j.steps||[]).forEach(function(s){ byPos[s.position]=s; });
     state={att:{},task:{},ans:{}};
     LESSONS.forEach(function(L){
@@ -276,12 +276,21 @@
 
   function renderLessons(){
     var host = document.getElementById("lessons"); host.innerHTML = ""; host.classList.remove("focus");
+    if(!ENROLLED){
+      var pay = document.createElement("div"); pay.className="card";
+      pay.style.cssText="background:#243B5C;border:1px solid var(--accent);color:#fff";
+      pay.innerHTML='<div class="wk"><span class="w" style="color:#F0D9A6">доступ к интенсиву</span></div>'+
+        '<h3 style="color:#fff">Интенсив открывается после оплаты</h3>'+
+        '<p class="hint" style="color:#C7D3E6">Загляни в «Старт» — а дни, задания и бонусы откроются сразу после оплаты.</p>'+
+        '<div class="row"><button class="btn primary" data-pay="1">🔓 Оплатить и открыть доступ</button></div>';
+      host.appendChild(pay);
+    }
     var sc=scheduleHTML(); if(sc){ var sw=document.createElement("div"); sw.innerHTML=sc; while(sw.firstChild) host.appendChild(sw.firstChild); }
     LESSONS.forEach(function(L){
       var future = (L.type==="day" || L.type==="feedback") && !L.avail;
       if(future){
         var cf = document.createElement("div"); cf.className="card"; cf.id="lesson-"+L.id;
-        var openTxt = (L.type==="day") ? ((L.id-1>=1) ? ("Откроется после завершения Дня "+(L.id-1)) : "Откроется после Старта") : "Откроется после завершения всех заданий";
+        var openTxt = !ENROLLED ? "Откроется после оплаты" : ((L.type==="day") ? ((L.id-1>=1) ? ("Откроется после завершения Дня "+(L.id-1)) : "Откроется после Старта") : "Откроется после завершения всех заданий");
         cf.innerHTML = '<div class="wk"><span class="w">'+LABELS[L.type]+'</span></div>'+
           '<h3>'+esc(L.topic)+'</h3>'+
           '<div class="lock">🔒 '+esc(openTxt)+' — мы сообщим, когда откроется.</div>';
@@ -567,6 +576,12 @@
         var tog=goCard.querySelector('[data-toggle]');
         if(tog && tog.getAttribute('aria-expanded')!=='true'){ tog.click(); }
       }
+      return;
+    }
+    else if(t.getAttribute("data-pay")){
+      var pu=SETTINGS.pay_url;
+      if(pu){ if(tgw&&tgw.openLink){tgw.openLink(pu);}else{window.open(pu,'_blank','noopener');} }
+      else { alert("Ссылка на оплату скоро появится."); }
       return;
     }
     else if(t.getAttribute("data-shop")){

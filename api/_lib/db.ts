@@ -32,19 +32,10 @@ export async function getActiveEnrollment(userId: string) {
   return data;
 }
 
-// Пилот/тест: если зачисления нет — записываем в последний активный поток.
-// (В проде заменить на enroll ТОЛЬКО по токену после оплаты в Акселе.)
+// Доступ к курсу — ТОЛЬКО у зачисленных (оплата через Aksel или добавление админом).
+// Гость (без зачисления) → null: приложение покажет Старт с замочками и кнопку оплаты.
 export async function ensureEnrollment(userId: string) {
-  const e = await getActiveEnrollment(userId);
-  if (e) return e;
-  const { data: cohort } = await supabase
-    .from('cohorts').select('*').eq('is_active', true)
-    .order('created_at', { ascending: false }).limit(1).maybeSingle();
-  if (!cohort) return null;
-  const { data } = await supabase.from('enrollments')
-    .insert({ user_id: userId, cohort_id: cohort.id, role: 'student', status: 'active' })
-    .select('*, cohort:cohorts(*)').single();
-  return data;
+  return await getActiveEnrollment(userId);
 }
 
 export function displayName(user: any): string {

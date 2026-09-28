@@ -68,7 +68,6 @@ export default async function handler(req: any, res: any) {
         const text = '📌 Меню\n\nВыбирайте по кнопкам ниже 👇';
         const keyboard = {
           inline_keyboard: [
-            [{ text: '☰ Меню', url: appLink }],
             [{ text: '🎬 Смотреть видео', url: vlink(18) }],
             [shopBtn],
             [{ text: '💬 Поддержка', url: botLink }],

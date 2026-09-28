@@ -60,12 +60,16 @@ export default async function handler(req: any, res: any) {
         const appLink = 'https://t.me/neurovia_sprint_bot?startapp';
         const botLink = 'https://t.me/neurovia_sprint_bot';
         const shop = (await getSetting('shop_url')) || 'https://claude.ai/code/artifact/5eef4174-0797-4e00-b175-56168015d519?sk=0Gp4cCcLetd1gOzPAq7yyw';
-        const video = String(req.query.video || (await getSetting('video_url')) || 'https://t.me/prorostonline');
-        const text = '📌 Меню\n\nОбучение, видео, магазин и поддержка — по кнопкам ниже 👇';
+        const vlink = (n: number) => 'https://t.me/prorostonline/' + n;
+        const text = '📌 Меню\n\nОбучение, магазин и поддержка — по кнопкам ниже.\n🎬 Записи встреч — Дни 1–3 👇';
         const keyboard = {
           inline_keyboard: [
             [{ text: '🎓 Обучение', url: appLink }],
-            [{ text: '🎬 Видео', url: video }],
+            [
+              { text: '🎬 День 1', url: vlink(18) },
+              { text: '🎬 День 2', url: vlink(19) },
+              { text: '🎬 День 3', url: vlink(20) },
+            ],
             [{ text: '🛍 Магазин', url: shop }],
             [{ text: '💬 Поддержка', url: botLink }],
           ],
@@ -85,6 +89,12 @@ export default async function handler(req: any, res: any) {
           await setSetting('main_channel_menu_msg', String(mid));
         }
         return res.status(200).json({ ok: !!sent?.ok, sent, pinned });
+      }
+      if (action === 'deletepost') {
+        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
+        const mid = Number(req.query.message_id || 0);
+        if (!mid) return res.status(400).json({ ok: false, error: 'message_id required' });
+        return res.status(200).json(await tg('deleteMessage', { chat_id: channel, message_id: mid }));
       }
       if (action === 'videoindex') {
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');

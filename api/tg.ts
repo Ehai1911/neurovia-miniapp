@@ -60,11 +60,11 @@ export default async function handler(req: any, res: any) {
         const appLink = 'https://t.me/neurovia_sprint_bot?startapp';
         const botLink = 'https://t.me/neurovia_sprint_bot';
         const shopReady = (await getSetting('shop_ready')) === '1';
-        const shop = String(req.query.shop || (await getSetting('shop_url')) || (await getSetting('shop_soon_url')) || 'https://t.me/prorostonline');
+        const shop = String(req.query.shop || (await getSetting('shop_url')) || (await getSetting('shop_soon_url')) || 'https://t.me/neurovia_sprint_bot');
         const shopBtn = shopReady
           ? { text: '🛍 Магазин', url: shop }
           : { text: '🛍 Магазин (скоро)', url: shop };
-        const vlink = (n: number) => 'https://t.me/prorostonline/' + n;
+        const vlink = (n: number) => 'https://t.me/c/3268173530/' + n;
         const text = '📌 Меню\n\nОбучение, магазин и поддержка — по кнопкам ниже.\n🎬 Записи встреч — Дни 1–3 👇';
         const keyboard = {
           inline_keyboard: [
@@ -112,7 +112,7 @@ export default async function handler(req: any, res: any) {
           text: '🛍 Магазин материалов\n\nОткрытие совсем скоро 🔜\nСледите за анонсами в канале.',
         });
         const mid = sent?.result?.message_id;
-        if (sent?.ok && mid) await setSetting('shop_soon_url', 'https://t.me/prorostonline/' + mid);
+        if (sent?.ok && mid) await setSetting('shop_soon_url', 'https://t.me/c/3268173530/' + mid);
         return res.status(200).json({ ok: !!sent?.ok, message_id: mid, sent });
       }
       if (action === 'deletepost') {
@@ -123,7 +123,7 @@ export default async function handler(req: any, res: any) {
       }
       if (action === 'videoindex') {
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
-        const link = (n: number) => 'https://t.me/prorostonline/' + n;
+        const link = (n: number) => 'https://t.me/c/3268173530/' + n;
         const sent = await tg('sendMessage', {
           chat_id: channel,
           text: '📹 Записи встреч\n\nВыбери день 👇',

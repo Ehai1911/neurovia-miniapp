@@ -65,15 +65,11 @@ export default async function handler(req: any, res: any) {
           ? { text: '🛍 Магазин', url: shop }
           : { text: '🛍 Магазин (скоро)', url: shop };
         const vlink = (n: number) => 'https://t.me/c/3268173530/' + n;
-        const text = '📌 Меню\n\nОбучение, магазин и поддержка — по кнопкам ниже.\n🎬 Записи встреч — Дни 1–3 👇';
+        const text = '📌 Меню\n\nВыбирайте по кнопкам ниже 👇';
         const keyboard = {
           inline_keyboard: [
-            [{ text: '🎓 Обучение', url: appLink }],
-            [
-              { text: '🎬 День 1', url: vlink(18) },
-              { text: '🎬 День 2', url: vlink(19) },
-              { text: '🎬 День 3', url: vlink(20) },
-            ],
+            [{ text: '☰ Меню', url: appLink }],
+            [{ text: '🎬 Смотреть видео', url: vlink(18) }],
             [shopBtn],
             [{ text: '💬 Поддержка', url: botLink }],
           ],

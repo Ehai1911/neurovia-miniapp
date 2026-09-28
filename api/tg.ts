@@ -206,8 +206,14 @@ export default async function handler(req: any, res: any) {
       if (/\bvideo\b/.test(text)) {
         await sendWithApp(chatId, 'Отлично! Прикрепите сюда ваш видеоотзыв 🎥 — просто отправьте видео в этот чат, и мы его получим.', base);
       } else {
-        await sendWithApp(chatId,
-          'Здравствуйте! Добро пожаловать на интенсив «Neurovia Sprint — От интереса к оплате» 🚀\n\nЗдесь всё, что нужно для участия: расписание живых встреч, ссылки на Zoom, задания и отметка посещения.\n\nЧтобы попасть в приложение — нажмите кнопку ниже 👇', base);
+        await tg('sendMessage', {
+          chat_id: chatId,
+          text: 'Здравствуйте! Добро пожаловать на интенсив «Neurovia Sprint — От интереса к оплате» 🚀\n\nЗдесь всё, что нужно для участия: расписание живых встреч, ссылки на Zoom, задания и отметка посещения.\n\nОткрывайте кнопкой «☰ Меню» внизу 👇',
+          reply_markup: {
+            keyboard: [[{ text: '☰ Меню', web_app: { url: base + '/' } }]],
+            resize_keyboard: true, is_persistent: true,
+          },
+        });
       }
       return res.status(200).json({ ok: true });
     }

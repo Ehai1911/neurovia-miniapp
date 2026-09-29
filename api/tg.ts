@@ -101,7 +101,7 @@ export default async function handler(req: any, res: any) {
         const text = '📌 Меню\n\nВыбирайте по кнопкам ниже 👇';
         const keyboard = {
           inline_keyboard: [
-            [{ text: '🚀 Точка Рост — эфиры', url: 'https://t.me/bahitadminbot?start=video' }],
+            [{ text: '🚀 Точка Рост — эфиры', url: 'https://t.me/bahitadminbot?startapp=video' }],
             [shopBtn],
             [{ text: '💬 Поддержка', url: botLink }],
           ],

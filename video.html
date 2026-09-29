@@ -24,8 +24,9 @@
   /* Плитки списка эфиров */
   .vtile{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:12px;cursor:pointer}
   .vtile .thumb{position:relative;padding-top:56.25%;background:#0b0b0b}
-  .vtile .thumb iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
-  .vtile .playic{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .vtile .thumb iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .vtile .tapcover{position:absolute;inset:0;z-index:2;background:transparent;border:none;padding:0;cursor:pointer}
+  .vtile .playic{position:absolute;inset:0;z-index:3;display:flex;align-items:center;justify-content:center;pointer-events:none}
   .vtile .playic span{width:54px;height:54px;border-radius:50%;background:rgba(201,169,110,.92);color:#12233c;display:flex;align-items:center;justify-content:center;font-size:22px;padding-left:3px;box-shadow:0 2px 10px rgba(0,0,0,.4)}
   .vtile .vtitle{padding:11px 14px;font-size:15.5px;font-weight:600}
   .back{background:none;border:none;color:var(--accent);font:inherit;font-size:14.5px;font-weight:600;cursor:pointer;padding:6px 2px;margin-bottom:8px}
@@ -54,13 +55,14 @@
   var tgw = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   var _qs = new URLSearchParams(location.search);
   if(tgw){
+    var isMobile = (tgw.platform==='android' || tgw.platform==='ios');
     try{ tgw.ready(); tgw.expand(); }catch(e){}
-    try{ if(tgw.disableVerticalSwipes) tgw.disableVerticalSwipes(); }catch(e){}
+    try{ if(isMobile && tgw.disableVerticalSwipes) tgw.disableVerticalSwipes(); }catch(e){}
     try{ if(tgw.setHeaderColor) tgw.setHeaderColor('#0F172A'); if(tgw.setBackgroundColor) tgw.setBackgroundColor('#0F172A'); }catch(e){}
-    // Полноэкранный режим (8.0+): убирает шапку Telegram, отдаёт весь экран под видео.
+    // Полноэкранный режим (8.0+) ТОЛЬКО на телефоне: убирает шапку Telegram. На компе — обычное окно.
     try{
       var applySafe=function(){ try{ var i=(tgw.contentSafeAreaInset||{}), s=(tgw.safeAreaInset||{}); document.documentElement.style.setProperty('--tgtop', ((s.top||0)+(i.top||0))+'px'); }catch(e){} };
-      if(tgw.requestFullscreen && tgw.isVersionAtLeast && tgw.isVersionAtLeast('8.0')){
+      if(isMobile && tgw.requestFullscreen && tgw.isVersionAtLeast && tgw.isVersionAtLeast('8.0')){
         try{ tgw.requestFullscreen(); }catch(e){}
         if(tgw.onEvent){ tgw.onEvent('contentSafeAreaChanged',applySafe); tgw.onEvent('safeAreaChanged',applySafe); tgw.onEvent('fullscreenChanged',applySafe); }
         applySafe();
@@ -96,6 +98,7 @@
     VIDEOS.forEach(function(v,i){
       h+='<div class="vtile" data-i="'+i+'"><div class="thumb">'+
          '<iframe src="'+esc(embedSrc(v.embed))+'" scrolling="no" tabindex="-1"></iframe>'+
+         '<button class="tapcover" type="button"></button>'+
          '<div class="playic"><span>▶</span></div></div>'+
          '<div class="vtitle">'+esc(v.title||'Эфир')+'</div></div>';
     });

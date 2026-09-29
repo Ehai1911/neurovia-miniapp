@@ -101,7 +101,7 @@ export default async function handler(req: any, res: any) {
         const text = '📌 Меню\n\nВыбирайте по кнопкам ниже 👇';
         const keyboard = {
           inline_keyboard: [
-            [{ text: '🎬 Смотреть видео', url: 'https://t.me/bahitadminbot/video' }],
+            [{ text: '🎬 Смотреть видео', url: 'https://t.me/bahitadminbot?start=video' }],
             [shopBtn],
             [{ text: '💬 Поддержка', url: botLink }],
           ],
@@ -206,11 +206,35 @@ export default async function handler(req: any, res: any) {
         const url = base + '/api/tg';
         return res.status(200).json(await tg('setWebhook', { url, secret_token: secret, allowed_updates: ['message', 'channel_post', 'my_chat_member'] }));
       }
+      if (action === 'clubsetwebhook') {
+        const secret = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 40);
+        await setSetting('club_webhook_secret', secret);
+        const url = base + '/api/tg?bot=club';
+        return res.status(200).json(await clubTg('setWebhook', { url, secret_token: secret, allowed_updates: ['message'] }));
+      }
       return res.status(400).json({ ok: false, error: 'unknown action: ' + action });
     }
 
     // ---------- Приём апдейтов Telegram ----------
     if (req.method !== 'POST') return res.status(200).json({ ok: true, note: 'tg webhook alive' });
+
+    // ----- Вебхук КЛУБНОГО бота (@bahitadminbot): /start → кнопка «Открыть видеотеку» -----
+    if (req.query?.bot === 'club') {
+      const cs = await getSetting('club_webhook_secret');
+      if (cs && req.headers['x-telegram-bot-api-secret-token'] !== cs) return res.status(401).json({ ok: false, error: 'bad secret' });
+      const u = req.body || {};
+      const m = u.message;
+      const t = (m && typeof m.text === 'string') ? m.text.trim() : '';
+      if (m && m.chat?.id && t.startsWith('/start')) {
+        const h = req.headers['x-forwarded-host'] || req.headers['host'];
+        await clubTg('sendMessage', {
+          chat_id: m.chat.id,
+          text: '🎬 Видеотека клуба «Про Рост Онлайн».\nОткрывайте кнопкой ниже 👇',
+          reply_markup: { inline_keyboard: [[{ text: '🎬 Открыть видеотеку', web_app: { url: 'https://' + h + '/video.html' } }]] },
+        });
+      }
+      return res.status(200).json({ ok: true });
+    }
 
     // Проверка секрета вебхука (Telegram шлёт заголовок).
     const secret = await getSetting('tg_webhook_secret');

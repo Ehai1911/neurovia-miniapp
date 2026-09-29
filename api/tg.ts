@@ -1,6 +1,15 @@
 import { supabase } from './_lib/supabase';
 import { getOrCreateUser, getActiveEnrollment, displayName } from './_lib/db';
 import { sendWithApp } from './_lib/bot';
+import { getAuthedUser } from './_lib/auth';
+
+const CLUB_TOKEN = process.env.CLUB_BOT_TOKEN || '';
+async function clubTg(method: string, payload?: any) {
+  const r = await fetch(`https://api.telegram.org/bot${CLUB_TOKEN}/${method}`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload || {}),
+  });
+  return r.json();
+}
 
 // Единый эндпоинт бота (экономим лимит функций Vercel):
 //  • POST  — приём апдейтов Telegram (webhook): /start и видеоотзывы.
@@ -30,10 +39,28 @@ export default async function handler(req: any, res: any) {
   try {
     if (!TOKEN) return res.status(500).json({ ok: false, error: 'BOT_TOKEN not set' });
 
-    // ---------- Сервисные действия (dev) ----------
     const action = req.query?.action ? String(req.query.action) : '';
+
+    // ---------- ПРОД: проверка членства в закрытом канале (клубный бот) ----------
+    // Вызывается из видеотеки (video.html), открытой через @bahitadminbot. НЕ dev-gated.
+    if (action === 'clubcheck') {
+      if (!CLUB_TOKEN) return res.status(500).json({ ok: false, error: 'CLUB_BOT_TOKEN not set' });
+      let user: any;
+      try { user = getAuthedUser(req, CLUB_TOKEN); }
+      catch (e: any) { return res.status(401).json({ ok: false, error: String(e?.message || e) }); }
+      const channel = (await getSetting('main_channel_id')) || '-1003268173530';
+      const r = await clubTg('getChatMember', { chat_id: channel, user_id: user.id });
+      const st = r?.result?.status;
+      const member = st === 'creator' || st === 'administrator' || st === 'member' || (st === 'restricted' && !!r.result?.is_member);
+      let videos: any[] = [];
+      if (member) { try { videos = JSON.parse((await getSetting('videos')) || '[]'); } catch { videos = []; } }
+      return res.status(200).json({ ok: true, member: !!member, videos: member ? videos : [] });
+    }
+
+    // ---------- Сервисные действия (dev) ----------
     if (action) {
       if (process.env.ALLOW_DEV_AUTH !== '1') return res.status(403).json({ ok: false, error: 'disabled' });
+      if (action === 'clubgetme') return res.status(200).json(await clubTg('getMe'));
       const host = req.headers['x-forwarded-host'] || req.headers['host'];
       const base = `https://${host}`;
       if (action === 'getwebhookinfo') return res.status(200).json(await tg('getWebhookInfo'));

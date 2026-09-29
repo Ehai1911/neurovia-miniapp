@@ -11,9 +11,9 @@ export type TgUser = {
 
 // Проверка подписи Telegram initData (HMAC-SHA256 по токену бота).
 // Личность берём ТОЛЬКО отсюда — никогда из тела запроса.
-export function verifyInitData(initData: string): TgUser {
-  const botToken = (process.env.BOT_TOKEN as string || '').trim();
-  if (!botToken) throw new Error('BOT_TOKEN not set');
+export function verifyInitData(initData: string, token?: string): TgUser {
+  const botToken = ((token ?? process.env.BOT_TOKEN) as string || '').trim();
+  if (!botToken) throw new Error('bot token not set');
   const params = new URLSearchParams(initData);
   const hash = params.get('hash');
   if (!hash) throw new Error('no hash in initData');
@@ -40,13 +40,13 @@ export function verifyInitData(initData: string): TgUser {
 
 // Достаём initData из запроса (тело/заголовок/квери) и валидируем.
 // DEV-обход (только если ALLOW_DEV_AUTH=1): позволяет тестировать без Telegram.
-export function getAuthedUser(req: any): TgUser {
+export function getAuthedUser(req: any, token?: string): TgUser {
   const initData =
     (req.body && req.body.initData) ||
     req.query?.initData ||
     req.headers?.['x-init-data'];
 
-  if (initData) return verifyInitData(String(initData));
+  if (initData) return verifyInitData(String(initData), token);
 
   if (process.env.ALLOW_DEV_AUTH === '1') {
     const id = Number(req.query?.tg || req.body?.tg || 100000001);

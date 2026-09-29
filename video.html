@@ -9,7 +9,8 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
     padding:0 14px calc(24px + env(safe-area-inset-bottom));}
-  header{display:flex;align-items:center;gap:10px;padding:16px 2px 12px;position:sticky;top:env(safe-area-inset-top,0);background:var(--bg);z-index:2}
+  header{display:flex;align-items:center;gap:10px;padding:16px 44px 12px 2px;position:sticky;top:var(--tgtop,env(safe-area-inset-top,0));background:var(--bg);z-index:2}
+  body{padding-top:var(--tgtop,0)}
   header .dot{width:34px;height:34px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#1E3A5F;font-size:18px}
   header h1{font-size:18px;margin:0;font-weight:600}
   header .sub{font-size:12px;color:var(--muted)}
@@ -40,7 +41,19 @@
 <script>
   var tgw = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   var _qs = new URLSearchParams(location.search);
-  if(tgw){ try{ tgw.ready(); tgw.expand(); if(tgw.setHeaderColor) tgw.setHeaderColor('#1E3A5F'); if(tgw.setBackgroundColor) tgw.setBackgroundColor('#0F172A'); }catch(e){} }
+  if(tgw){
+    try{ tgw.ready(); tgw.expand(); }catch(e){}
+    try{ if(tgw.setHeaderColor) tgw.setHeaderColor('#0F172A'); if(tgw.setBackgroundColor) tgw.setBackgroundColor('#0F172A'); }catch(e){}
+    // Полноэкранный режим (8.0+): убирает шапку Telegram, отдаёт весь экран под видео.
+    try{
+      var applySafe=function(){ try{ var i=(tgw.contentSafeAreaInset||{}), s=(tgw.safeAreaInset||{}); document.documentElement.style.setProperty('--tgtop', ((s.top||0)+(i.top||0))+'px'); }catch(e){} };
+      if(tgw.requestFullscreen && tgw.isVersionAtLeast && tgw.isVersionAtLeast('8.0')){
+        try{ tgw.requestFullscreen(); }catch(e){}
+        if(tgw.onEvent){ tgw.onEvent('contentSafeAreaChanged',applySafe); tgw.onEvent('safeAreaChanged',applySafe); tgw.onEvent('fullscreenChanged',applySafe); }
+        applySafe();
+      }
+    }catch(e){}
+  }
 
   function authHeaders(){ var h={'content-type':'application/json'}; if(tgw && tgw.initData){ h['x-init-data']=tgw.initData; } return h; }
   function authPath(p){ if(!(tgw && tgw.initData)){ p += (p.indexOf('?')>=0?'&':'?')+'tg='+encodeURIComponent(_qs.get('tg')||'100000001'); } return p; }

@@ -70,7 +70,7 @@
   function api(p,opts){ opts=opts||{}; return fetch(authPath(p),{method:opts.method||'GET',headers:authHeaders(),body:opts.body?JSON.stringify(opts.body):undefined}).then(function(r){return r.json();}); }
   function esc(x){ return String(x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 
-  function embedSrc(u){ u=String(u||''); return u + (u.indexOf('?')>=0?'&':'?') + 'showTitle=true&showControls=true&muted=false&autoplay=false'; }
+  function embedSrc(u,autoplay){ u=String(u||''); return u + (u.indexOf('?')>=0?'&':'?') + 'showTitle=true&showControls=true&muted=false&autoplay=' + (autoplay?'true':'false'); }
 
   function renderGate(){
     var app=document.getElementById('app');
@@ -106,7 +106,7 @@
     if(v.presentation) att+='<a href="'+esc(v.presentation)+'" target="_blank" rel="noopener">📊 Презентация</a>';
     if(v.workbook) att+='<a href="'+esc(v.workbook)+'" target="_blank" rel="noopener">📓 Рабочая тетрадь</a>';
     app.innerHTML='<button class="back" data-back>← Все эфиры</button>'+
-      '<div class="video fw"><iframe src="'+esc(embedSrc(v.embed))+'" allow="accelerometer; fullscreen; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe></div>'+
+      '<div class="video fw"><iframe src="'+esc(embedSrc(v.embed,true))+'" allow="accelerometer; autoplay; fullscreen; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe></div>'+
       '<div class="pl-title">'+esc(v.title||'Эфир')+'</div>'+
       (att?('<div class="att">'+att+'</div>'):'');
     try{ document.querySelector('main, body').scrollTop=0; window.scrollTo(0,0); }catch(e){}

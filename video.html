@@ -17,11 +17,6 @@
   .card h3{font-size:15.5px;margin:0 0 8px;font-weight:600}
   .video{position:relative;padding-top:56.25%;border-radius:10px;overflow:hidden;background:#000}
   .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-  .fsbtn{position:absolute;bottom:8px;right:8px;z-index:4;background:rgba(0,0,0,.55);color:#fff;border:none;
-    border-radius:8px;padding:5px 9px;font-size:16px;line-height:1;cursor:pointer}
-  .video.fs{position:fixed;inset:0;width:100vw;height:100vh;padding-top:0;border-radius:0;z-index:9999;background:#000}
-  .video.fs iframe{position:absolute;inset:0;width:100%;height:100%}
-  .video.fs .fsbtn{top:12px;bottom:auto;right:12px;font-size:18px;padding:6px 11px}
   .hint{color:var(--muted);font-size:13px;line-height:1.5}
   .btn{display:block;width:100%;text-align:center;border:none;border-radius:10px;padding:12px;font-size:14.5px;font-weight:600;
     cursor:pointer;font-family:inherit;background:var(--accent);color:#1E3A5F;text-decoration:none}
@@ -76,7 +71,7 @@
       if(v.presentation) att+='<a href="'+esc(v.presentation)+'" target="_blank" rel="noopener">📊 Презентация</a>';
       if(v.workbook) att+='<a href="'+esc(v.workbook)+'" target="_blank" rel="noopener">📓 Рабочая тетрадь</a>';
       h+='<div class="card"><h3>'+esc(v.title||'Эфир')+'</h3>'+
-         '<div class="video"><iframe src="'+esc(embedSrc(v.embed))+'" allow="accelerometer; fullscreen; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe><button type="button" class="fsbtn" title="На весь экран">⛶</button></div>'+
+         '<div class="video"><iframe src="'+esc(embedSrc(v.embed))+'" allow="accelerometer; fullscreen; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe></div>'+
          (att?('<div class="att">'+att+'</div>'):'')+
          (v.note?('<p class="hint" style="margin:8px 0 0">'+esc(v.note)+'</p>'):'')+'</div>';
     });
@@ -90,12 +85,6 @@
       renderVideos(Array.isArray(j.videos)?j.videos:[]);
     }).catch(function(){ document.getElementById('app').innerHTML='<div class="card"><p class="hint">Ошибка загрузки.</p></div>'; });
   }
-  document.addEventListener('click',function(e){
-    var b=e.target.closest('.fsbtn'); if(!b) return;
-    var v=b.closest('.video'); if(!v) return;
-    var on=v.classList.toggle('fs');
-    b.textContent = on ? '✕' : '⛶';
-  });
   setTimeout(boot,0);
 </script>
 </body>

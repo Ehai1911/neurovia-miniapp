@@ -257,3 +257,40 @@ export async function updateCohort(req: any, res: any) {
     return res.status(200).json({ ok: true });
   } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
 }
+
+// Достаёт чистую embed-ссылку из вставленного iframe/URL (убирает query — параметры добавим сами).
+function extractEmbed(raw: string): string {
+  let s = String(raw || '').trim();
+  const m = s.match(/src\s*=\s*["']([^"']+)["']/i);
+  if (m) s = m[1];
+  s = s.split('?')[0].split('#')[0];
+  return s.trim();
+}
+
+// ---------- GET videos-list ----------
+export async function videosList(req: any, res: any) {
+  try {
+    const { scope } = await resolveAdmin(req);
+    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
+    const { data } = await supabase.from('app_settings').select('value').eq('key', 'videos').maybeSingle();
+    let list: any[] = [];
+    try { list = JSON.parse(data?.value || '[]'); } catch { list = []; }
+    return res.status(200).json({ ok: true, videos: Array.isArray(list) ? list : [] });
+  } catch (e: any) { return res.status(401).json({ ok: false, error: String(e?.message || e) }); }
+}
+
+// ---------- POST videos-save { videos:[{title, embed}] } ----------
+export async function videosSave(req: any, res: any) {
+  try {
+    const { scope } = await resolveAdmin(req);
+    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
+    const raw = Array.isArray(req.body?.videos) ? req.body.videos : [];
+    const clean = raw
+      .map((v: any) => ({ title: String(v?.title || '').slice(0, 200), embed: extractEmbed(v?.embed).slice(0, 500) }))
+      .filter((v: any) => v.embed);
+    await supabase.from('app_settings').upsert(
+      { key: 'videos', value: JSON.stringify(clean), updated_at: new Date().toISOString() },
+      { onConflict: 'key' });
+    return res.status(200).json({ ok: true, videos: clean });
+  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
+}

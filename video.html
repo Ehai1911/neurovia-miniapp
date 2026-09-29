@@ -8,7 +8,8 @@
   :root{--bg:#0F172A;--topbar:#1E3A5F;--accent:#C9A96E;--card:#18263E;--ink:#EAF0F8;--muted:#9FB2CC;--line:#2B3E5C;}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-    padding:0 14px calc(24px + env(safe-area-inset-bottom));}
+    padding:0 14px calc(24px + env(safe-area-inset-bottom));overflow-x:hidden;}
+  html,body{overscroll-behavior:none;}
   header{display:flex;align-items:center;gap:10px;padding:16px 44px 12px 2px;background:var(--bg)}
   body{padding-top:var(--tgtop,0)}
   header .dot{width:34px;height:34px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#1E3A5F;font-size:18px}
@@ -53,6 +54,7 @@
   var _qs = new URLSearchParams(location.search);
   if(tgw){
     try{ tgw.ready(); tgw.expand(); }catch(e){}
+    try{ if(tgw.disableVerticalSwipes) tgw.disableVerticalSwipes(); }catch(e){}
     try{ if(tgw.setHeaderColor) tgw.setHeaderColor('#0F172A'); if(tgw.setBackgroundColor) tgw.setBackgroundColor('#0F172A'); }catch(e){}
     // Полноэкранный режим (8.0+): убирает шапку Telegram, отдаёт весь экран под видео.
     try{

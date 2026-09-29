@@ -64,7 +64,7 @@ export default async function handler(req: any, res: any) {
       if (action === 'clubmenubutton') {
         const h = req.headers['x-forwarded-host'] || req.headers['host'];
         const url = String(req.query.url || ('https://' + h + '/video.html'));
-        const btnText = String(req.query.text || '🎬 Видеотека');
+        const btnText = String(req.query.text || '🚀 Точка Рост');
         return res.status(200).json(await clubTg('setChatMenuButton', {
           menu_button: { type: 'web_app', text: btnText, web_app: { url } },
         }));
@@ -101,7 +101,7 @@ export default async function handler(req: any, res: any) {
         const text = '📌 Меню\n\nВыбирайте по кнопкам ниже 👇';
         const keyboard = {
           inline_keyboard: [
-            [{ text: '🎬 Смотреть видео', url: 'https://t.me/bahitadminbot?start=video' }],
+            [{ text: '🚀 Точка Рост — эфиры', url: 'https://t.me/bahitadminbot?start=video' }],
             [shopBtn],
             [{ text: '💬 Поддержка', url: botLink }],
           ],
@@ -229,8 +229,8 @@ export default async function handler(req: any, res: any) {
         const h = req.headers['x-forwarded-host'] || req.headers['host'];
         await clubTg('sendMessage', {
           chat_id: m.chat.id,
-          text: '🎬 Видеотека клуба «Про Рост Онлайн».\nОткрывайте кнопкой ниже 👇',
-          reply_markup: { inline_keyboard: [[{ text: '🎬 Открыть видеотеку', web_app: { url: 'https://' + h + '/video.html' } }]] },
+          text: '🚀 Точка Рост — эфиры с экспертами клуба «Про Рост Онлайн».\nОткрывайте кнопкой ниже 👇',
+          reply_markup: { inline_keyboard: [[{ text: '🚀 Открыть Точку Рост', web_app: { url: 'https://' + h + '/video.html' } }]] },
         });
       }
       return res.status(200).json({ ok: true });

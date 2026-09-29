@@ -267,6 +267,14 @@ function extractEmbed(raw: string): string {
   return s.trim();
 }
 
+// Ссылка на файл (презентация/тетрадь): из iframe/ссылки, но query сохраняем (нужен для Slides/PDF).
+function extractUrl(raw: string): string {
+  let s = String(raw || '').trim();
+  const m = s.match(/href\s*=\s*["']([^"']+)["']/i) || s.match(/src\s*=\s*["']([^"']+)["']/i);
+  if (m) s = m[1];
+  return s.trim();
+}
+
 // ---------- GET videos-list ----------
 export async function videosList(req: any, res: any) {
   try {
@@ -286,7 +294,12 @@ export async function videosSave(req: any, res: any) {
     if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
     const raw = Array.isArray(req.body?.videos) ? req.body.videos : [];
     const clean = raw
-      .map((v: any) => ({ title: String(v?.title || '').slice(0, 200), embed: extractEmbed(v?.embed).slice(0, 500) }))
+      .map((v: any) => ({
+        title: String(v?.title || '').slice(0, 200),
+        embed: extractEmbed(v?.embed).slice(0, 500),
+        presentation: extractUrl(v?.presentation).slice(0, 500),
+        workbook: extractUrl(v?.workbook).slice(0, 500),
+      }))
       .filter((v: any) => v.embed);
     await supabase.from('app_settings').upsert(
       { key: 'videos', value: JSON.stringify(clean), updated_at: new Date().toISOString() },

@@ -117,7 +117,7 @@
     if(!j.ok){ if(j._status===401||j._status===403){ showLogin(j._status===401?'Сессия истекла — войдите заново.':''); return; } showErr(j.error||'Ошибка'); return; }
     var h=(TOKEN?'<button class="logout" onclick="logout()">выйти</button>':'')+'<h2>Потоки</h2>';
     h+='<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="openSupport()">🆘 Обращения в поддержку <span id="sup-badge"></span></button></div>';
-    h+='<div class="row" style="margin:0 0 12px"><button class="btn" style="width:100%" onclick="openVideos()">🎬 Видеотека</button></div>';
+    h+='<div class="row" style="margin:0 0 12px"><button class="btn" style="width:100%" onclick="openVideos()">🚀 Точка Рост — эфиры</button></div>';
     if(!j.cohorts.length) h+='<div class="muted">Потоков пока нет.</div>';
     j.cohorts.forEach(function(c){
       var dates = c.starts_on ? (fmt(c.starts_on)+(c.ends_on?' – '+fmt(c.ends_on):'')) : '';
@@ -309,21 +309,23 @@
   };
   window.renderVideos = function(){
     var el=document.getElementById('list');
-    var h='<button class="back" onclick="loadCohorts()">← к потокам</button><h2>Видеотека</h2>'+
-      '<div class="muted" style="margin-bottom:10px">Вставь название и ссылку (можно весь код iframe). Порядок карточек = порядок в приложении. Видео видят только оплатившие.</div>';
+    var h='<button class="back" onclick="loadCohorts()">← к потокам</button><h2>Точка Рост — эфиры</h2>'+
+      '<div class="muted" style="margin-bottom:10px">Эфир = видео + (по желанию) презентация и рабочая тетрадь. Можно вставлять весь iframe или ссылку. Порядок карточек = порядок в приложении. Видят только участники клуба.</div>';
     VIDS.forEach(function(v,i){
       h+='<div class="card">'+
-        '<input placeholder="Название (напр. День 1)" value="'+esc(v.title||'')+'" oninput="VIDS['+i+'].title=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box">'+
-        '<input placeholder="Ссылка или весь iframe" value="'+esc(v.embed||'')+'" oninput="VIDS['+i+'].embed=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;margin-top:6px">'+
+        '<input placeholder="Название эфира (напр. День 1 — Анастасия Юрченко)" value="'+esc(v.title||'')+'" oninput="VIDS['+i+'].title=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box">'+
+        '<input placeholder="Видео: ссылка или весь iframe" value="'+esc(v.embed||'')+'" oninput="VIDS['+i+'].embed=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;margin-top:6px">'+
+        '<input placeholder="Презентация: ссылка (необязательно)" value="'+esc(v.presentation||'')+'" oninput="VIDS['+i+'].presentation=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;margin-top:6px">'+
+        '<input placeholder="Рабочая тетрадь: ссылка (необязательно)" value="'+esc(v.workbook||'')+'" oninput="VIDS['+i+'].workbook=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;margin-top:6px">'+
         '<div class="row" style="gap:6px;margin-top:8px"><button class="btn" onclick="vidMove('+i+',-1)">↑</button><button class="btn" onclick="vidMove('+i+',1)">↓</button><button class="btn" onclick="vidDel('+i+')">Удалить</button></div>'+
       '</div>';
     });
-    h+='<button class="btn" style="width:100%;margin-top:8px" onclick="vidAdd()">+ Добавить видео</button>'+
+    h+='<button class="btn" style="width:100%;margin-top:8px" onclick="vidAdd()">+ Добавить эфир</button>'+
        '<button class="btn primary" style="width:100%;margin-top:10px" onclick="vidSave()">Сохранить</button>'+
        '<span id="vid-status" style="display:block;font-size:13px;margin-top:8px"></span>';
     el.innerHTML=h;
   };
-  window.vidAdd=function(){ VIDS.push({title:'',embed:''}); renderVideos(); };
+  window.vidAdd=function(){ VIDS.push({title:'',embed:'',presentation:'',workbook:''}); renderVideos(); };
   window.vidDel=function(i){ VIDS.splice(i,1); renderVideos(); };
   window.vidMove=function(i,d){ var n=i+d; if(n<0||n>=VIDS.length) return; var t=VIDS[n]; VIDS[n]=VIDS[i]; VIDS[i]=t; renderVideos(); };
   window.vidSave=async function(){

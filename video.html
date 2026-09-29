@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Видеотека</title>
+<title>Точка Рост</title>
 <style>
   :root{--bg:#0F172A;--topbar:#1E3A5F;--accent:#C9A96E;--card:#18263E;--ink:#EAF0F8;--muted:#9FB2CC;--line:#2B3E5C;}
   *{box-sizing:border-box}
@@ -20,6 +20,9 @@
   .hint{color:var(--muted);font-size:13px;line-height:1.5}
   .btn{display:block;width:100%;text-align:center;border:none;border-radius:10px;padding:12px;font-size:14.5px;font-weight:600;
     cursor:pointer;font-family:inherit;background:var(--accent);color:#1E3A5F;text-decoration:none}
+  .att{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .att a{flex:1;min-width:130px;text-align:center;padding:10px;border-radius:10px;font-size:13.5px;font-weight:600;
+    text-decoration:none;background:#22344F;color:#EAF0F8;border:1px solid var(--line)}
   .gate{margin-top:18px}
   .gate .lock{font-size:34px;text-align:center;margin:6px 0}
   .center{text-align:center}
@@ -28,8 +31,8 @@
 </head>
 <body>
   <header>
-    <span class="dot">🎬</span>
-    <div><h1>Видеотека</h1><div class="sub">ПроРост Онлайн</div></div>
+    <span class="dot">🚀</span>
+    <div><h1>Точка Рост</h1><div class="sub">Эфиры с экспертами</div></div>
   </header>
   <div id="app"><div class="load">Загрузка…</div></div>
 
@@ -61,11 +64,15 @@
 
   function renderVideos(list){
     var app=document.getElementById('app');
-    if(!list.length){ app.innerHTML='<div class="card"><p class="hint">Видео скоро появятся здесь.</p></div>'; return; }
+    if(!list.length){ app.innerHTML='<div class="card"><p class="hint">Эфиры скоро появятся здесь.</p></div>'; return; }
     var h='';
     list.forEach(function(v){
-      h+='<div class="card"><h3>'+esc(v.title||'Видео')+'</h3>'+
+      var att='';
+      if(v.presentation) att+='<a href="'+esc(v.presentation)+'" target="_blank" rel="noopener">📊 Презентация</a>';
+      if(v.workbook) att+='<a href="'+esc(v.workbook)+'" target="_blank" rel="noopener">📓 Рабочая тетрадь</a>';
+      h+='<div class="card"><h3>'+esc(v.title||'Эфир')+'</h3>'+
          '<div class="video"><iframe src="'+esc(embedSrc(v.embed))+'" allow="accelerometer; fullscreen; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>'+
+         (att?('<div class="att">'+att+'</div>'):'')+
          (v.note?('<p class="hint" style="margin:8px 0 0">'+esc(v.note)+'</p>'):'')+'</div>';
     });
     app.innerHTML=h;

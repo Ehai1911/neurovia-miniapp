@@ -61,6 +61,13 @@ export default async function handler(req: any, res: any) {
     if (action) {
       if (process.env.ALLOW_DEV_AUTH !== '1') return res.status(403).json({ ok: false, error: 'disabled' });
       if (action === 'clubgetme') return res.status(200).json(await clubTg('getMe'));
+      if (action === 'clubmenubutton') {
+        const url = String(req.query.url || base + '/video.html');
+        const btnText = String(req.query.text || '🎬 Видеотека');
+        return res.status(200).json(await clubTg('setChatMenuButton', {
+          menu_button: { type: 'web_app', text: btnText, web_app: { url } },
+        }));
+      }
       const host = req.headers['x-forwarded-host'] || req.headers['host'];
       const base = `https://${host}`;
       if (action === 'getwebhookinfo') return res.status(200).json(await tg('getWebhookInfo'));
@@ -93,7 +100,7 @@ export default async function handler(req: any, res: any) {
         const text = '📌 Меню\n\nВыбирайте по кнопкам ниже 👇';
         const keyboard = {
           inline_keyboard: [
-            [{ text: '🎬 Смотреть видео', url: 'https://t.me/neurovia_sprint_bot?start=videoteka' }],
+            [{ text: '🎬 Смотреть видео', url: 'https://t.me/bahitadminbot/video' }],
             [shopBtn],
             [{ text: '💬 Поддержка', url: botLink }],
           ],

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Видеотека</title>
+<style>
+  :root{--bg:#0F172A;--topbar:#1E3A5F;--accent:#C9A96E;--card:#18263E;--ink:#EAF0F8;--muted:#9FB2CC;--line:#2B3E5C;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    padding:0 14px calc(24px + env(safe-area-inset-bottom));}
+  header{display:flex;align-items:center;gap:10px;padding:16px 2px 12px;position:sticky;top:env(safe-area-inset-top,0);background:var(--bg);z-index:2}
+  header .dot{width:34px;height:34px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#1E3A5F;font-size:18px}
+  header h1{font-size:18px;margin:0;font-weight:600}
+  header .sub{font-size:12px;color:var(--muted)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:14px}
+  .card h3{font-size:15.5px;margin:0 0 8px;font-weight:600}
+  .video{position:relative;padding-top:56.25%;border-radius:10px;overflow:hidden;background:#000}
+  .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .hint{color:var(--muted);font-size:13px;line-height:1.5}
+  .btn{display:block;width:100%;text-align:center;border:none;border-radius:10px;padding:12px;font-size:14.5px;font-weight:600;
+    cursor:pointer;font-family:inherit;background:var(--accent);color:#1E3A5F;text-decoration:none}
+  .gate{margin-top:18px}
+  .gate .lock{font-size:34px;text-align:center;margin:6px 0}
+  .center{text-align:center}
+  .load{color:var(--muted);text-align:center;padding:40px 0}
+</style>
+</head>
+<body>
+  <header>
+    <span class="dot">🎬</span>
+    <div><h1>Видеотека</h1><div class="sub">ПроРост Онлайн</div></div>
+  </header>
+  <div id="app"><div class="load">Загрузка…</div></div>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+  var tgw = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  var _qs = new URLSearchParams(location.search);
+  if(tgw){ try{ tgw.ready(); tgw.expand(); if(tgw.setHeaderColor) tgw.setHeaderColor('#1E3A5F'); if(tgw.setBackgroundColor) tgw.setBackgroundColor('#0F172A'); }catch(e){} }
+
+  function authHeaders(){ var h={'content-type':'application/json'}; if(tgw && tgw.initData){ h['x-init-data']=tgw.initData; } return h; }
+  function authPath(p){ if(!(tgw && tgw.initData)){ p += (p.indexOf('?')>=0?'&':'?')+'tg='+encodeURIComponent(_qs.get('tg')||'100000001'); } return p; }
+  function api(p,opts){ opts=opts||{}; return fetch(authPath(p),{method:opts.method||'GET',headers:authHeaders(),body:opts.body?JSON.stringify(opts.body):undefined}).then(function(r){return r.json();}); }
+  function esc(x){ return String(x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  function embedSrc(u){ u=String(u||''); return u + (u.indexOf('?')>=0?'&':'?') + 'showTitle=true&showControls=true&muted=false&autoplay=false'; }
+
+  function renderGate(payUrl){
+    var app=document.getElementById('app');
+    app.innerHTML='<div class="card gate"><div class="lock">🔒</div>'+
+      '<h3 class="center">Видео — для участников</h3>'+
+      '<p class="hint center">Доступ к видеотеке открывается после оплаты интенсива.</p>'+
+      '<div style="margin-top:12px"><button class="btn" id="pay">🔓 Оплатить и открыть доступ</button></div></div>';
+    var b=document.getElementById('pay');
+    b.addEventListener('click',function(){
+      if(payUrl){ if(tgw&&tgw.openLink){tgw.openLink(payUrl);}else{window.open(payUrl,'_blank','noopener');} }
+      else { alert('Ссылка на оплату скоро появится.'); }
+    });
+  }
+
+  function renderVideos(list){
+    var app=document.getElementById('app');
+    if(!list.length){ app.innerHTML='<div class="card"><p class="hint">Видео скоро появятся здесь.</p></div>'; return; }
+    var h='';
+    list.forEach(function(v){
+      h+='<div class="card"><h3>'+esc(v.title||'Видео')+'</h3>'+
+         '<div class="video"><iframe src="'+esc(embedSrc(v.embed))+'" allow="accelerometer; fullscreen; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>'+
+         (v.note?('<p class="hint" style="margin:8px 0 0">'+esc(v.note)+'</p>'):'')+'</div>';
+    });
+    app.innerHTML=h;
+  }
+
+  function boot(){
+    api('/api/steps').then(function(j){
+      if(!j || !j.ok){ document.getElementById('app').innerHTML='<div class="card"><p class="hint">Не удалось загрузить. Откройте из бота ещё раз.</p></div>'; return; }
+      if(!j.enrolled){ renderGate((j.settings||{}).pay_url); return; }
+      var list=[]; try{ list=JSON.parse((j.settings||{}).videos||'[]'); }catch(e){ list=[]; }
+      renderVideos(Array.isArray(list)?list:[]);
+    }).catch(function(){ document.getElementById('app').innerHTML='<div class="card"><p class="hint">Ошибка загрузки.</p></div>'; });
+  }
+  setTimeout(boot,0);
+</script>
+</body>
+</html>

@@ -57,18 +57,16 @@ export default async function handler(req: any, res: any) {
       }
       if (action === 'postmenu' || action === 'editmenu') {
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
-        const appLink = 'https://t.me/neurovia_sprint_bot?startapp';
         const botLink = 'https://t.me/neurovia_sprint_bot';
         const shopReady = (await getSetting('shop_ready')) === '1';
         const shop = String(req.query.shop || (await getSetting('shop_url')) || (await getSetting('shop_soon_url')) || 'https://t.me/neurovia_sprint_bot');
         const shopBtn = shopReady
           ? { text: '🛍 Магазин', url: shop }
           : { text: '🛍 Магазин (скоро)', url: shop };
-        const vlink = (n: number) => 'https://t.me/c/3268173530/' + n;
         const text = '📌 Меню\n\nВыбирайте по кнопкам ниже 👇';
         const keyboard = {
           inline_keyboard: [
-            [{ text: '🎬 Смотреть видео', url: vlink(18) }],
+            [{ text: '🎬 Смотреть видео', url: 'https://t.me/neurovia_sprint_bot?start=videoteka' }],
             [shopBtn],
             [{ text: '💬 Поддержка', url: botLink }],
           ],
@@ -227,7 +225,13 @@ export default async function handler(req: any, res: any) {
 
     // /start → приглашение прислать видео (по deep-link ?start=video) или приветствие
     if (text.startsWith('/start')) {
-      if (/\bvideo\b/.test(text)) {
+      if (/\bvideoteka\b/.test(text)) {
+        await tg('sendMessage', {
+          chat_id: chatId,
+          text: '🎬 Видеотека — записи и уроки. Откройте кнопкой ниже 👇',
+          reply_markup: { inline_keyboard: [[{ text: '🎬 Открыть видеотеку', web_app: { url: base + '/video.html' } }]] },
+        });
+      } else if (/\bvideo\b/.test(text)) {
         await sendWithApp(chatId, 'Отлично! Прикрепите сюда ваш видеоотзыв 🎥 — просто отправьте видео в этот чат, и мы его получим.', base);
       } else {
         await tg('sendMessage', {

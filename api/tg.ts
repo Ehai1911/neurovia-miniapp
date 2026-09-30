@@ -293,12 +293,18 @@ export default async function handler(req: any, res: any) {
       // --- ЛИЧКА с ботом ---
       if (m.chat.type === 'private') {
         if (t.startsWith('/start')) {
+          // Приветствие/приглашение — разовое. Кто уже видел, тому на повторный /start ничего не шлём.
+          const uid = m.from?.id ? String(m.from.id) : '';
+          let seen: string[] = [];
+          try { seen = JSON.parse((await getSetting('club_started_users')) || '[]'); } catch { seen = []; }
+          if (uid && seen.indexOf(uid) >= 0) return res.status(200).json({ ok: true });
           const channelUrl = (await getSetting('channel_invite_url')) || (await getSetting('club_chat_url')) || 'https://t.me/+Ev7OzmOXRAhiNGJi';
           const backKb = { inline_keyboard: [[{ text: '↩️ Вернуться в канал', url: channelUrl }]] };
           const text = /\bsupport\b/.test(t)
             ? '💬 Обратная связь клуба «Про Рост Онлайн».\n\nНапишите ваш вопрос прямо сюда — куратор ответит здесь же.'
             : '👋 Это бот обратной связи клуба «Про Рост Онлайн».\n\nНапишите вопрос куратору прямо сюда — ответ придёт в этот чат.';
           await clubTg('sendMessage', { chat_id: m.chat.id, text, reply_markup: backKb });
+          if (uid) { seen.push(uid); await setSetting('club_started_users', JSON.stringify(seen.slice(-5000))); }
           return res.status(200).json({ ok: true });
         }
         // Любое сообщение → в группу поддержки (с пометкой #id для ответа)

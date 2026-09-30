@@ -18,12 +18,11 @@
   .card h3{font-size:15.5px;margin:0 0 8px;font-weight:600}
   .video{position:relative;padding-top:56.25%;border-radius:10px;overflow:hidden;background:#000}
   .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-  /* На экране плеера — во всю ширину телефона (край в край) */
-  .video.fw{margin-left:-14px;margin-right:-14px;border-radius:0}
-  /* Повернул телефон в альбомную → видео само на весь экран (как на YouTube) */
+  .tapcover{position:absolute;inset:0;z-index:2;background:transparent;border:none;padding:0;cursor:pointer}
+  /* Запущенное видео: поворот телефона в альбомную → на весь экран (как на YouTube) */
   @media (orientation:landscape){
-    .video.fw{position:fixed;inset:0;margin:0;width:100vw;height:100vh;padding-top:0;border-radius:0;z-index:9999;background:#000}
-    .video.fw iframe{position:absolute;inset:0;width:100%;height:100%}
+    .video.active{position:fixed;inset:0;margin:0;width:100vw;height:100vh;padding-top:0;border-radius:0;z-index:9999;background:#000}
+    .video.active iframe{position:absolute;inset:0;width:100%;height:100%}
   }
   /* Плитки списка эфиров */
   .vtile{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:12px;cursor:pointer}
@@ -91,25 +90,16 @@
     if(!VIDEOS.length){ app.innerHTML='<div class="card"><p class="hint">Эфиры скоро появятся здесь.</p></div>'; return; }
     var h='';
     VIDEOS.forEach(function(v,i){
-      h+='<div class="vtile" data-i="'+i+'"><div class="thumb">'+
-         '<iframe src="'+esc(embedSrc(v.embed))+'" scrolling="no" tabindex="-1"></iframe>'+
-         '<button class="tapcover" type="button"></button>'+
-         '<div class="playic"><span>▶</span></div></div>'+
-         '<div class="vtitle">'+esc(v.title||'Эфир')+'</div></div>';
+      var att='';
+      if(v.presentation) att+='<a href="'+esc(v.presentation)+'" target="_blank" rel="noopener">📊 Презентация</a>';
+      if(v.workbook) att+='<a href="'+esc(v.workbook)+'" target="_blank" rel="noopener">📓 Рабочая тетрадь</a>';
+      h+='<div class="card">'+
+         '<h3>'+esc(v.title||'Эфир')+'</h3>'+
+         '<div class="video" data-i="'+i+'"><iframe src="'+esc(embedSrc(v.embed))+'" allow="accelerometer; autoplay; fullscreen; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe><button class="tapcover" type="button"></button></div>'+
+         (att?('<div class="att">'+att+'</div>'):'')+
+         '</div>';
     });
     app.innerHTML=h;
-  }
-  function openPlayer(i){
-    var v=VIDEOS[i]; if(!v) return;
-    var app=document.getElementById('app');
-    var att='';
-    if(v.presentation) att+='<a href="'+esc(v.presentation)+'" target="_blank" rel="noopener">📊 Презентация</a>';
-    if(v.workbook) att+='<a href="'+esc(v.workbook)+'" target="_blank" rel="noopener">📓 Рабочая тетрадь</a>';
-    app.innerHTML='<button class="back" data-back>← Все эфиры</button>'+
-      '<div class="video fw"><iframe src="'+esc(embedSrc(v.embed,true))+'" allow="accelerometer; autoplay; fullscreen; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe></div>'+
-      '<div class="pl-title">'+esc(v.title||'Эфир')+'</div>'+
-      (att?('<div class="att">'+att+'</div>'):'');
-    try{ document.querySelector('main, body').scrollTop=0; window.scrollTo(0,0); }catch(e){}
   }
 
   function boot(){
@@ -119,9 +109,15 @@
       VIDEOS=Array.isArray(j.videos)?j.videos:[]; renderList();
     }).catch(function(){ document.getElementById('app').innerHTML='<div class="card"><p class="hint">Ошибка загрузки.</p></div>'; });
   }
+  // Тап по видео → запускаем его прямо здесь (без отдельной вкладки) и делаем активным.
   document.addEventListener('click',function(e){
-    var t=e.target.closest('.vtile'); if(t){ openPlayer(+t.getAttribute('data-i')); return; }
-    if(e.target.closest('[data-back]')){ renderList(); return; }
+    var cover=e.target.closest('.tapcover'); if(!cover) return;
+    var vd=cover.closest('.video'); if(!vd) return;
+    var v=VIDEOS[+vd.getAttribute('data-i')];
+    document.querySelectorAll('.video.active').forEach(function(x){ x.classList.remove('active'); });
+    vd.classList.add('active');
+    var ifr=vd.querySelector('iframe'); if(ifr && v){ ifr.src=embedSrc(v.embed,true); }
+    cover.remove();
   });
   setTimeout(boot,0);
 </script>

@@ -35,6 +35,25 @@ async function setSetting(key: string, value: string) {
   await supabase.from('app_settings').upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
 }
 
+// Единая клавиатура-меню клуба (используется и в закрепе, и под каждым постом).
+async function clubMenuKeyboard() {
+  const shopReady = (await getSetting('shop_ready')) === '1';
+  const shop = (await getSetting('shop_url')) || (await getSetting('shop_soon_url')) || 'https://t.me/neurovia_sprint_bot';
+  const chatUrl = (await getSetting('club_chat_url')) || 'https://t.me/+Ev7OzmOXRAhiNGJi';
+  return {
+    inline_keyboard: [
+      [
+        { text: '🚀 Точка Роста', url: 'https://t.me/bahitadminbot?startapp=video' },
+        { text: '👥 Наш чат', url: chatUrl },
+      ],
+      [
+        shopReady ? { text: '🛍 Магазин', url: shop } : { text: '🛍 Магазин (скоро)', url: shop },
+        { text: '💬 Обратная связь', url: 'https://t.me/bahitadminbot?start=support' },
+      ],
+    ],
+  };
+}
+
 export default async function handler(req: any, res: any) {
   try {
     if (!TOKEN) return res.status(500).json({ ok: false, error: 'BOT_TOKEN not set' });
@@ -92,21 +111,8 @@ export default async function handler(req: any, res: any) {
       }
       if (action === 'postmenu' || action === 'editmenu') {
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
-        const shopReady = (await getSetting('shop_ready')) === '1';
-        const shop = String(req.query.shop || (await getSetting('shop_url')) || (await getSetting('shop_soon_url')) || 'https://t.me/neurovia_sprint_bot');
-        const shopBtn = shopReady
-          ? { text: '🛍 Магазин', url: shop }
-          : { text: '🛍 Магазин (скоро)', url: shop };
-        const chatUrl = String((await getSetting('club_chat_url')) || 'https://t.me/+Ev7OzmOXRAhiNGJi');
         const text = '📌 Меню\n\nВыбирайте по кнопкам ниже 👇';
-        const keyboard = {
-          inline_keyboard: [
-            [{ text: '🚀 Точка Рост — эфиры', url: 'https://t.me/bahitadminbot?startapp=video' }],
-            [{ text: '👥 Наш чат', url: chatUrl }],
-            [shopBtn],
-            [{ text: '💬 Обратная связь', url: 'https://t.me/bahitadminbot?start=support' }],
-          ],
-        };
+        const keyboard = await clubMenuKeyboard();
         if (action === 'editmenu') {
           const mid = Number(req.query.message_id || (await getSetting('main_channel_menu_msg')) || 0);
           if (!mid) return res.status(400).json({ ok: false, error: 'message_id not known' });
@@ -145,10 +151,8 @@ export default async function handler(req: any, res: any) {
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
         const mid = Number(req.query.message_id || 0);
         if (!mid) return res.status(400).json({ ok: false, error: 'message_id required' });
-        const menuMsg = Number(await getSetting('main_channel_menu_msg')) || 15;
         return res.status(200).json(await tg('editMessageReplyMarkup', {
-          chat_id: channel, message_id: mid,
-          reply_markup: { inline_keyboard: [[{ text: '☰ Меню', url: 'https://t.me/c/3268173530/' + menuMsg }]] },
+          chat_id: channel, message_id: mid, reply_markup: await clubMenuKeyboard(),
         }));
       }
       if (action === 'learnpost') {
@@ -293,7 +297,7 @@ export default async function handler(req: any, res: any) {
 
     const update = req.body || {};
 
-    // Авто-кнопка «☰ Меню» на каждый новый пост канала (кроме служебного меню).
+    // Авто-кнопки меню (Точка Роста / Наш чат / Магазин / Обратная связь) под каждым новым постом канала.
     const cp = update.channel_post;
     if (cp && cp.chat && cp.message_id) {
       const mainCh = await getSetting('main_channel_id');
@@ -304,7 +308,7 @@ export default async function handler(req: any, res: any) {
         if (!hasBtns && isContent && cp.message_id !== menuMsg) {
           await tg('editMessageReplyMarkup', {
             chat_id: cp.chat.id, message_id: cp.message_id,
-            reply_markup: { inline_keyboard: [[{ text: '☰ Меню', url: 'https://t.me/c/3268173530/' + menuMsg }]] },
+            reply_markup: await clubMenuKeyboard(),
           });
         }
       }

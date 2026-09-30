@@ -339,7 +339,7 @@ export async function clubScheduleSave(req: any, res: any) {
 export async function clubPost(req: any, res: any) {
   try {
     const { scope } = await resolveAdmin(req);
-    if (scope.none || !scope.global) return res.status(403).json({ ok: false, error: 'Только админ может публиковать в канал.' });
+    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
     const text = String(req.body?.text || '').trim();
     if (!text) return res.status(400).json({ ok: false, error: 'Пустое сообщение.' });
     const channel = await getSet('main_channel_id');

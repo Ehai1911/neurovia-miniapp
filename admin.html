@@ -404,12 +404,12 @@
          '<button class="btn primary" style="width:100%;font-size:15px;padding:12px" onclick="cefPublishPlan()">📢 Опубликовать план в канал</button>'+
          '<span id="cef-plan-status" style="display:block;font-size:13px;margin-top:8px"></span>'+
        '</div>'+
-       // Разовое сообщение — отдельная карточка, не связано с планом
-       '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">✍️ Своё сообщение в канал</h3>'+
-         '<div class="muted" style="margin-bottom:6px">Разовый пост в канал — не связан с расписанием.</div>'+
+       // Разовое сообщение — карточка в том же стиле, что и публикация плана
+       '<div class="card" style="margin-top:12px;border:1.5px solid var(--accent);background:var(--accent-soft)"><h3 style="margin-top:0">✍️ Своё сообщение в канал</h3>'+
+         '<div class="muted" style="margin-bottom:10px">Разовый пост в канал — не связан с расписанием.</div>'+
          '<textarea id="cef-msg" placeholder="Текст сообщения в канал…" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;min-height:70px"></textarea>'+
-         '<button class="btn" style="width:100%;margin-top:6px" onclick="cefSendMsg()">Отправить в канал</button>'+
-         '<span id="cef-post-status" style="display:block;font-size:13px;margin-top:6px"></span>'+
+         '<button class="btn primary" style="width:100%;font-size:15px;padding:12px;margin-top:8px" onclick="cefSendMsg()">✍️ Отправить в канал</button>'+
+         '<span id="cef-post-status" style="display:block;font-size:13px;margin-top:8px"></span>'+
        '</div>';
     el.innerHTML=h;
   };

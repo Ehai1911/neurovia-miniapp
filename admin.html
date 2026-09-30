@@ -104,21 +104,35 @@
     var j=await r.json();
     if(!j.ok){ e.textContent=j.error||'Ошибка входа.'; e.hidden=false; return; }
     TOKEN=j.token; try{ localStorage.setItem('adm_token',TOKEN);}catch(x){}
-    loadCohorts();
+    loadHome();
   };
   window.logout = function(){ TOKEN=''; try{ localStorage.removeItem('adm_token'); }catch(x){} showLogin(); };
   var CUR=null; // текущий поток {id,title}
 
-  async function loadCohorts(){
+  // Главный экран кабинета — дашборд: Интенсив / Клуб
+  function loadHome(){
     only('cohorts');
-    document.getElementById('sub').textContent='выберите поток';
+    document.getElementById('sub').textContent='';
+    var el=document.getElementById('cohorts');
+    var sect=function(t){ return '<div style="font-size:13px;letter-spacing:.4px;font-weight:600;color:#5f6f63;margin:18px 2px 8px">'+t+'</div>'; };
+    var h=(TOKEN?'<button class="logout" onclick="logout()">выйти</button>':'')+'<h2>Кабинет куратора</h2>'+
+      sect('🎓 ИНТЕНСИВ «СПРИНТ»')+
+      '<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="loadCohortsList()">👥 Потоки</button></div>'+
+      '<div class="row" style="margin:0 0 4px"><button class="btn" style="width:100%" onclick="openSupport()">🆘 Обращения <span id="sup-badge"></span></button></div>'+
+      sect('🌱 КЛУБ «ПРО РОСТ ОНЛАЙН»')+
+      '<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="openVideos()">🚀 Точка Роста</button></div>'+
+      '<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="openClubEfiry()">📅 Эфиры и рассылка</button></div>';
+    el.innerHTML=h;
+    apiGet('/api/admin/support').then(function(sj){ var b=document.getElementById('sup-badge'); if(b && sj && sj.ok && sj.newCount>0){ b.innerHTML='<span class="chip c-amber">'+sj.newCount+' новых</span>'; } });
+  }
+  // Список потоков (внутри «Интенсива»)
+  async function loadCohortsList(){
+    only('cohorts');
+    document.getElementById('sub').textContent='потоки';
     var el=document.getElementById('cohorts');
     var j=await apiGet('/api/admin/cohorts');
     if(!j.ok){ if(j._status===401||j._status===403){ showLogin(j._status===401?'Сессия истекла — войдите заново.':''); return; } showErr(j.error||'Ошибка'); return; }
-    var h=(TOKEN?'<button class="logout" onclick="logout()">выйти</button>':'')+'<h2>Потоки</h2>';
-    h+='<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="openSupport()">🆘 Обращения в поддержку <span id="sup-badge"></span></button></div>';
-    h+='<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="openVideos()">🚀 Точка Рост — эфиры</button></div>';
-    h+='<div class="row" style="margin:0 0 12px"><button class="btn" style="width:100%" onclick="openClubEfiry()">📅 Эфиры клуба — план и рассылка</button></div>';
+    var h='<button class="back" onclick="loadHome()">← в кабинет</button><h2>Потоки</h2>';
     if(!j.cohorts.length) h+='<div class="muted">Потоков пока нет.</div>';
     j.cohorts.forEach(function(c){
       var dates = c.starts_on ? (fmt(c.starts_on)+(c.ends_on?' – '+fmt(c.ends_on):'')) : '';
@@ -130,16 +144,16 @@
       '</div>';
     });
     el.innerHTML=h;
-    apiGet('/api/admin/support').then(function(sj){ var b=document.getElementById('sup-badge'); if(b && sj && sj.ok && sj.newCount>0){ b.innerHTML='<span class="chip c-amber">'+sj.newCount+' новых</span>'; } });
   }
+  window.loadHome=loadHome; window.loadCohortsList=loadCohortsList;
   // Обращения в поддержку
   window.openSupport = async function(){
     only('list');
     var el=document.getElementById('list'); el.innerHTML='<div class="muted">Загрузка…</div>';
     var j=await apiGet('/api/admin/support');
-    if(!j.ok){ el.innerHTML='<button class="back" onclick="loadCohorts()">← к потокам</button><div class="err">'+esc(j.error)+'</div>'; return; }
+    if(!j.ok){ el.innerHTML='<button class="back" onclick="loadHome()">← в кабинет</button><div class="err">'+esc(j.error)+'</div>'; return; }
     document.getElementById('sub').textContent='поддержка';
-    var h='<button class="back" onclick="loadCohorts()">← к потокам</button><h2>Обращения в поддержку</h2>';
+    var h='<button class="back" onclick="loadHome()">← в кабинет</button><h2>Обращения в поддержку</h2>';
     if(!j.messages.length){ h+='<div class="muted">Обращений пока нет.</div>'; el.innerHTML=h; return; }
     j.messages.forEach(function(m){
       var when=''; try{ when=new Date(m.created_at).toLocaleString('ru-RU'); }catch(e){}
@@ -175,10 +189,10 @@
     only('list');
     var el=document.getElementById('list');
     var j=await apiGet('/api/admin/participants',{ cohort_id:cohortId });
-    if(!j.ok){ el.innerHTML='<button class="back" onclick="loadCohorts()">← ко всем потокам</button><div class="err">'+esc(j.error)+'</div>'; return; }
+    if(!j.ok){ el.innerHTML='<button class="back" onclick="loadCohortsList()">← ко всем потокам</button><div class="err">'+esc(j.error)+'</div>'; return; }
     document.getElementById('sub').textContent=(j.cohort&&j.cohort.title)||title||'';
     var s=j.summary;
-    var h='<button class="back" onclick="loadCohorts()">← ко всем потокам</button>'+
+    var h='<button class="back" onclick="loadCohortsList()">← ко всем потокам</button>'+
       '<div class="stat">'+
       tile(s.total,'участников')+tile(s.completed,'завершили')+tile(s.avgProgress+'%','сред. прогресс')+tile(s.tasksDone+'/'+s.tasksTotal,'задания')+
       '</div>'+
@@ -200,7 +214,7 @@
   }
   function tile(n,l){ return '<div class="box"><div class="num">'+n+'</div><div class="lab">'+l+'</div></div>'; }
 
-  window.backToList = function(){ if(CUR) openCohort(CUR.id, CUR.title); else loadCohorts(); };
+  window.backToList = function(){ if(CUR) openCohort(CUR.id, CUR.title); else loadCohortsList(); };
   window.openDetail = async function(id){
     only('detail');
     var el=document.getElementById('detail'); el.innerHTML='<div class="muted">Загрузка…</div>';
@@ -253,7 +267,7 @@
   window.doMove = async function(eid){
     var sel=document.getElementById('movesel'); if(!sel) return;
     var j=await apiPost('/api/admin/move-participant',{enrollment_id:eid, cohort_id:sel.value});
-    if(j.ok){ CUR=null; loadCohorts(); } else alert(j.error||'Ошибка');
+    if(j.ok){ CUR=null; loadCohortsList(); } else alert(j.error||'Ошибка');
   };
   // Редактирование дат/приёма потока
   window.editDates = async function(){
@@ -315,13 +329,13 @@
     only('list'); document.getElementById('sub').textContent='видеотека';
     var el=document.getElementById('list'); el.innerHTML='<div class="muted">Загрузка…</div>';
     var j=await apiGet('/api/admin/videos-list');
-    if(!j.ok){ if(j._status===401||j._status===403){ showLogin(j._status===401?'Сессия истекла — войдите заново.':''); return; } el.innerHTML='<button class="back" onclick="loadCohorts()">← к потокам</button><div class="err">'+esc(j.error||'Ошибка')+'</div>'; return; }
+    if(!j.ok){ if(j._status===401||j._status===403){ showLogin(j._status===401?'Сессия истекла — войдите заново.':''); return; } el.innerHTML='<button class="back" onclick="loadHome()">← в кабинет</button><div class="err">'+esc(j.error||'Ошибка')+'</div>'; return; }
     VIDS=Array.isArray(j.videos)?j.videos:[];
     renderVideos();
   };
   window.renderVideos = function(){
     var el=document.getElementById('list');
-    var h='<button class="back" onclick="loadCohorts()">← к потокам</button><h2>Точка Рост — эфиры</h2>'+
+    var h='<button class="back" onclick="loadHome()">← в кабинет</button><h2>Точка Рост — эфиры</h2>'+
       '<div class="muted" style="margin-bottom:10px">Эфир = видео + (по желанию) презентация и рабочая тетрадь. Можно вставлять весь iframe или ссылку. Порядок карточек = порядок в приложении. Видят только участники клуба.</div>';
     VIDS.forEach(function(v,i){
       h+='<div class="card">'+
@@ -353,7 +367,7 @@
     only('list'); document.getElementById('sub').textContent='эфиры клуба';
     var el=document.getElementById('list'); el.innerHTML='<div class="muted">Загрузка…</div>';
     var j=await apiGet('/api/admin/club-schedule-list');
-    if(!j.ok){ if(j._status===401||j._status===403){ showLogin(j._status===401?'Сессия истекла — войдите заново.':''); return; } el.innerHTML='<button class="back" onclick="loadCohorts()">← к потокам</button><div class="err">'+esc(j.error||'Ошибка')+'</div>'; return; }
+    if(!j.ok){ if(j._status===401||j._status===403){ showLogin(j._status===401?'Сессия истекла — войдите заново.':''); return; } el.innerHTML='<button class="back" onclick="loadHome()">← в кабинет</button><div class="err">'+esc(j.error||'Ошибка')+'</div>'; return; }
     CEF=Array.isArray(j.schedule)?j.schedule:[];
     renderCEF();
   };
@@ -368,7 +382,7 @@
   }
   window.renderCEF=function(){
     var el=document.getElementById('list');
-    var h='<button class="back" onclick="loadCohorts()">← к потокам</button><h2>Эфиры клуба</h2>'+
+    var h='<button class="back" onclick="loadHome()">← в кабинет</button><h2>Эфиры клуба</h2>'+
       '<div class="muted" style="margin-bottom:10px">План эфиров. Опубликуй его в канал одной кнопкой, а в день эфира бот сам утром напомнит в канале.</div>';
     CEF.forEach(function(s,i){
       h+='<div class="card">'+
@@ -412,7 +426,7 @@
   };
 
   // Точка входа: есть токен/dev/Telegram → в кабинет; иначе — форма логина.
-  if (TOKEN || DEV || initData) { loadCohorts(); } else { showLogin(); }
+  if (TOKEN || DEV || initData) { loadHome(); } else { showLogin(); }
 </script>
 </body>
 </html>

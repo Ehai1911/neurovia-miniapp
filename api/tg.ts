@@ -35,6 +35,16 @@ async function setSetting(key: string, value: string) {
   await supabase.from('app_settings').upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
 }
 
+// Ссылки-разделы для подписи-футера под постами (кликабельный текст).
+async function clubFooterParts() {
+  const chatUrl = (await getSetting('club_chat_url')) || 'https://t.me/+Ev7OzmOXRAhiNGJi';
+  return [
+    { t: '🚀 Точка Роста', u: 'https://t.me/bahitadminbot?startapp=video' },
+    { t: '👥 Наш чат', u: chatUrl },
+    { t: '💬 Обратная связь', u: 'https://t.me/bahitadminbot?start=support' },
+  ];
+}
+
 // Единая клавиатура-меню клуба (используется и в закрепе, и под каждым постом).
 async function clubMenuKeyboard() {
   const shopReady = (await getSetting('shop_ready')) === '1';
@@ -157,6 +167,19 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json(await tg('editMessageReplyMarkup', {
           chat_id: channel, message_id: mid, reply_markup: await clubMenuKeyboard(),
         }));
+      }
+      if (action === 'stripbtns') {
+        // Снять инлайн-кнопки с постов канала. ?message_id=N или ?from=A&to=B (диапазон).
+        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
+        const from = Number(req.query.from || req.query.message_id || 0);
+        const to = Number(req.query.to || req.query.message_id || from);
+        if (!from) return res.status(400).json({ ok: false, error: 'message_id or from/to required' });
+        const done: any[] = [];
+        for (let mid = from; mid <= to; mid++) {
+          const r = await tg('editMessageReplyMarkup', { chat_id: channel, message_id: mid, reply_markup: { inline_keyboard: [] } });
+          done.push({ mid, ok: !!(r && r.ok), err: r && r.ok ? undefined : (r && r.description) });
+        }
+        return res.status(200).json({ ok: true, done });
       }
       if (action === 'learnpost') {
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
@@ -300,19 +323,38 @@ export default async function handler(req: any, res: any) {
 
     const update = req.body || {};
 
-    // Авто-кнопки меню (Точка Роста / Наш чат / Магазин / Обратная связь) под каждым новым постом канала.
+    // Авто-футер под каждым новым постом канала: кликабельные ТЕКСТОВЫЕ ссылки на разделы
+    // (Точка Роста / Наш чат / Обратная связь). Кнопки не добавляем — только ссылки в конце поста.
     const cp = update.channel_post;
     if (cp && cp.chat && cp.message_id) {
       const mainCh = await getSetting('main_channel_id');
       if (mainCh && String(cp.chat.id) === String(mainCh)) {
-        const hasBtns = !!(cp.reply_markup && cp.reply_markup.inline_keyboard);
-        const isContent = !!(cp.video || cp.photo || cp.document || cp.animation || cp.text || cp.caption);
+        const isMedia = !!(cp.video || cp.photo || cp.document || cp.animation);
+        const isContent = isMedia || !!(cp.text || cp.caption);
         const menuMsg = Number(await getSetting('main_channel_menu_msg')) || 0;
-        if (!hasBtns && isContent && cp.message_id !== menuMsg) {
-          await tg('editMessageReplyMarkup', {
-            chat_id: cp.chat.id, message_id: cp.message_id,
-            reply_markup: await clubMenuKeyboard(),
+        const base = String(isMedia ? (cp.caption || '') : (cp.text || ''));
+        const baseEntities = (isMedia ? cp.caption_entities : cp.entities) || [];
+        const already = base.indexOf('🚀 Точка Роста') >= 0; // футер уже добавлен
+        if (isContent && cp.message_id !== menuMsg && !already) {
+          const parts = await clubFooterParts();
+          const prefix = base ? base + '\n\n' : '';
+          const sep = '   ';
+          let footer = '';
+          const footerEntities: any[] = [];
+          parts.forEach((p, i) => {
+            footerEntities.push({ type: 'text_link', offset: prefix.length + footer.length, length: p.t.length, url: p.u });
+            footer += p.t + (i < parts.length - 1 ? sep : '');
           });
+          const newText = prefix + footer;
+          const entities = [...baseEntities, ...footerEntities];
+          const limit = isMedia ? 1024 : 4096;
+          if (newText.length <= limit) {
+            if (isMedia) {
+              await tg('editMessageCaption', { chat_id: cp.chat.id, message_id: cp.message_id, caption: newText, caption_entities: entities });
+            } else {
+              await tg('editMessageText', { chat_id: cp.chat.id, message_id: cp.message_id, text: newText, entities, disable_web_page_preview: true });
+            }
+          }
         }
       }
       return res.status(200).json({ ok: true });

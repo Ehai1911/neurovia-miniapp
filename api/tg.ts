@@ -285,7 +285,11 @@ export default async function handler(req: any, res: any) {
       if (m.chat.type === 'private') {
         if (t.startsWith('/start')) {
           if (/\bsupport\b/.test(t)) {
-            await clubTg('sendMessage', { chat_id: m.chat.id, text: '💬 Обратная связь клуба «Про Рост Онлайн».\n\nНапишите ваш вопрос прямо сюда — куратор ответит здесь же.' });
+            await clubTg('sendMessage', {
+              chat_id: m.chat.id,
+              text: '💬 Обратная связь клуба «Про Рост Онлайн».\n\nНапишите ваш вопрос прямо сюда — куратор ответит здесь же.',
+              reply_markup: { inline_keyboard: [[{ text: '🚀 Открыть Точку Рост', web_app: { url: 'https://' + h + '/video.html' } }]] },
+            });
           } else {
             await clubTg('sendMessage', {
               chat_id: m.chat.id,

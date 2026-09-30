@@ -1,5 +1,5 @@
 import { supabase } from './_lib/supabase';
-import { sendWithApp } from './_lib/bot';
+import { sendWithApp, tgCall } from './_lib/bot';
 
 // Напоминания о занятиях. Запускается Vercel Cron раз в день (утром, 09:00 Алматы).
 // Если сегодня (по времени UTC+5) по расписанию потока есть встреча — шлёт студентам
@@ -70,7 +70,31 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    return res.status(200).json({ ok: true, date: todayKZ, sent, failed, fired });
+    // ---- Клубные эфиры: если сегодня есть эфир → пост в канал клуба ----
+    let clubPosted = 0;
+    try {
+      const channel = settings['main_channel_id'];
+      let clubSched: any[] = [];
+      try { clubSched = JSON.parse(settings['club_schedule'] || '[]'); } catch { clubSched = []; }
+      let log: string[] = [];
+      try { log = JSON.parse(settings['club_reminder_log'] || '[]'); } catch { log = []; }
+      if (channel && Array.isArray(clubSched)) {
+        for (const s of clubSched) {
+          if (String(s?.date || '').slice(0, 10) !== todayKZ) continue;
+          const keyId = s.date + '|' + (s.time || '') + '|' + String(s.title || '').slice(0, 40);
+          if (log.indexOf(keyId) >= 0) continue; // уже напоминали
+          const t = '🔔 Сегодня' + (s.time ? (' в ' + s.time) : '') + ' — ' + String(s.title || 'эфир') +
+            (s.expert ? (' · ' + s.expert) : '') + (s.zoom ? ('\n\n🎥 Подключиться: ' + s.zoom) : '');
+          const j = await tgCall('sendMessage', { chat_id: channel, text: t, disable_web_page_preview: true });
+          if (j && j.ok) { clubPosted++; log.push(keyId); }
+        }
+        await supabase.from('app_settings').upsert(
+          { key: 'club_reminder_log', value: JSON.stringify(log.slice(-300)), updated_at: new Date().toISOString() },
+          { onConflict: 'key' });
+      }
+    } catch (e) { /* клубные напоминания не должны ронять крон */ }
+
+    return res.status(200).json({ ok: true, date: todayKZ, sent, failed, fired, clubPosted });
   } catch (e: any) {
     return res.status(500).json({ ok: false, error: String(e?.message || e) });
   }

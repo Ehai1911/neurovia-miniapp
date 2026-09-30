@@ -295,6 +295,61 @@ function extractUrl(raw: string): string {
   return s.trim();
 }
 
+// ===== Клубные эфиры (расписание + рассылка в канал) =====
+async function getSet(key: string): Promise<string | null> {
+  const { data } = await supabase.from('app_settings').select('value').eq('key', key).maybeSingle();
+  return data?.value ?? null;
+}
+
+// GET club-schedule-list
+export async function clubScheduleList(req: any, res: any) {
+  try {
+    const { scope } = await resolveAdmin(req);
+    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
+    let list: any[] = [];
+    try { list = JSON.parse((await getSet('club_schedule')) || '[]'); } catch { list = []; }
+    return res.status(200).json({ ok: true, schedule: Array.isArray(list) ? list : [] });
+  } catch (e: any) { return res.status(401).json({ ok: false, error: String(e?.message || e) }); }
+}
+
+// POST club-schedule-save { schedule:[{date,time,title,expert,zoom}] }
+export async function clubScheduleSave(req: any, res: any) {
+  try {
+    const { scope } = await resolveAdmin(req);
+    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
+    const raw = Array.isArray(req.body?.schedule) ? req.body.schedule : [];
+    const clean = raw
+      .map((s: any) => ({
+        date: String(s?.date || '').slice(0, 10),
+        time: String(s?.time || '').slice(0, 5),
+        title: String(s?.title || '').slice(0, 200),
+        expert: String(s?.expert || '').slice(0, 120),
+        zoom: String(s?.zoom || '').slice(0, 500),
+      }))
+      .filter((s: any) => s.date && s.title)
+      .sort((a: any, b: any) => (a.date + (a.time || '') < b.date + (b.time || '') ? -1 : 1));
+    await supabase.from('app_settings').upsert(
+      { key: 'club_schedule', value: JSON.stringify(clean), updated_at: new Date().toISOString() },
+      { onConflict: 'key' });
+    return res.status(200).json({ ok: true, schedule: clean });
+  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
+}
+
+// POST club-post { text } → публикует сообщение в канал клуба
+export async function clubPost(req: any, res: any) {
+  try {
+    const { scope } = await resolveAdmin(req);
+    if (scope.none || !scope.global) return res.status(403).json({ ok: false, error: 'Только админ может публиковать в канал.' });
+    const text = String(req.body?.text || '').trim();
+    if (!text) return res.status(400).json({ ok: false, error: 'Пустое сообщение.' });
+    const channel = await getSet('main_channel_id');
+    if (!channel) return res.status(400).json({ ok: false, error: 'Канал не настроен.' });
+    const j = await tgCall('sendMessage', { chat_id: channel, text, disable_web_page_preview: true });
+    if (!j || !j.ok) return res.status(200).json({ ok: false, error: 'Не удалось опубликовать (бот — админ канала?).' });
+    return res.status(200).json({ ok: true });
+  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
+}
+
 // ---------- GET videos-list ----------
 export async function videosList(req: any, res: any) {
   try {

@@ -17,6 +17,9 @@ const MAP: Record<string, (req: any, res: any) => Promise<any>> = {
   'support-reply': H.supportReply,
   'videos-list': H.videosList,
   'videos-save': H.videosSave,
+  'club-schedule-list': H.clubScheduleList,
+  'club-schedule-save': H.clubScheduleSave,
+  'club-post': H.clubPost,
 };
 
 export default async function handler(req: any, res: any) {

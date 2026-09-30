@@ -117,7 +117,8 @@
     if(!j.ok){ if(j._status===401||j._status===403){ showLogin(j._status===401?'Сессия истекла — войдите заново.':''); return; } showErr(j.error||'Ошибка'); return; }
     var h=(TOKEN?'<button class="logout" onclick="logout()">выйти</button>':'')+'<h2>Потоки</h2>';
     h+='<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="openSupport()">🆘 Обращения в поддержку <span id="sup-badge"></span></button></div>';
-    h+='<div class="row" style="margin:0 0 12px"><button class="btn" style="width:100%" onclick="openVideos()">🚀 Точка Рост — эфиры</button></div>';
+    h+='<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="openVideos()">🚀 Точка Рост — эфиры</button></div>';
+    h+='<div class="row" style="margin:0 0 12px"><button class="btn" style="width:100%" onclick="openClubEfiry()">📅 Эфиры клуба — план и рассылка</button></div>';
     if(!j.cohorts.length) h+='<div class="muted">Потоков пока нет.</div>';
     j.cohorts.forEach(function(c){
       var dates = c.starts_on ? (fmt(c.starts_on)+(c.ends_on?' – '+fmt(c.ends_on):'')) : '';
@@ -344,6 +345,70 @@
     var j=await apiPost('/api/admin/videos-save',{videos:VIDS});
     if(j.ok){ VIDS=Array.isArray(j.videos)?j.videos:[]; renderVideos(); setStatus('vid-status','ok','✓ Сохранено'); }
     else { setStatus('vid-status','err',j.error||'Ошибка'); }
+  };
+
+  // ---- Эфиры клуба: план + рассылка в канал ----
+  var CEF=[];
+  window.openClubEfiry = async function(){
+    only('list'); document.getElementById('sub').textContent='эфиры клуба';
+    var el=document.getElementById('list'); el.innerHTML='<div class="muted">Загрузка…</div>';
+    var j=await apiGet('/api/admin/club-schedule-list');
+    if(!j.ok){ if(j._status===401||j._status===403){ showLogin(j._status===401?'Сессия истекла — войдите заново.':''); return; } el.innerHTML='<button class="back" onclick="loadCohorts()">← к потокам</button><div class="err">'+esc(j.error||'Ошибка')+'</div>'; return; }
+    CEF=Array.isArray(j.schedule)?j.schedule:[];
+    renderCEF();
+  };
+  var RU_MON=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  function cefPlanText(){
+    var lines=['📅 План эфиров',''];
+    CEF.filter(function(s){return s.date&&s.title;}).forEach(function(s){
+      var d=String(s.date).split('-'); var day=+d[2], mo=RU_MON[(+d[1])-1]||'';
+      lines.push('🗓 '+day+' '+mo+(s.time?(', '+s.time):'')+' — '+s.title+(s.expert?(' · '+s.expert):''));
+    });
+    return lines.join('\n');
+  }
+  window.renderCEF=function(){
+    var el=document.getElementById('list');
+    var h='<button class="back" onclick="loadCohorts()">← к потокам</button><h2>Эфиры клуба</h2>'+
+      '<div class="muted" style="margin-bottom:10px">План эфиров. Опубликуй его в канал одной кнопкой, а в день эфира бот сам утром напомнит в канале.</div>';
+    CEF.forEach(function(s,i){
+      h+='<div class="card">'+
+        '<div class="row" style="gap:6px;flex-wrap:wrap"><input type="date" value="'+esc(s.date||'')+'" oninput="CEF['+i+'].date=this.value" style="padding:7px;border-radius:8px">'+
+        '<input type="time" value="'+esc(s.time||'')+'" oninput="CEF['+i+'].time=this.value" style="padding:7px;border-radius:8px"></div>'+
+        '<input placeholder="Тема эфира" value="'+esc(s.title||'')+'" oninput="CEF['+i+'].title=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;margin-top:6px">'+
+        '<input placeholder="Эксперт" value="'+esc(s.expert||'')+'" oninput="CEF['+i+'].expert=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;margin-top:6px">'+
+        '<input placeholder="Ссылка Zoom (для напоминания)" value="'+esc(s.zoom||'')+'" oninput="CEF['+i+'].zoom=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;margin-top:6px">'+
+        '<div class="row" style="margin-top:8px"><button class="btn" onclick="CEF.splice('+i+',1);renderCEF()">Удалить</button></div>'+
+      '</div>';
+    });
+    h+='<button class="btn" style="width:100%;margin-top:8px" onclick="CEF.push({date:\'\',time:\'\',title:\'\',expert:\'\',zoom:\'\'});renderCEF()">+ Добавить эфир</button>'+
+       '<button class="btn primary" style="width:100%;margin-top:8px" onclick="cefSave()">Сохранить план</button>'+
+       '<span id="cef-status" style="display:block;font-size:13px;margin:6px 0"></span>'+
+       '<div class="card" style="margin-top:12px"><h3>Публикация в канал</h3>'+
+         '<button class="btn" style="width:100%" onclick="cefPublishPlan()">📢 Опубликовать план в канал</button>'+
+         '<div class="muted" style="margin:10px 0 6px">Или своё сообщение в канал:</div>'+
+         '<textarea id="cef-msg" placeholder="Текст сообщения в канал…" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;min-height:70px"></textarea>'+
+         '<button class="btn primary" style="width:100%;margin-top:6px" onclick="cefSendMsg()">✍️ Отправить в канал</button>'+
+         '<span id="cef-post-status" style="display:block;font-size:13px;margin-top:6px"></span>'+
+       '</div>';
+    el.innerHTML=h;
+  };
+  window.cefSave=async function(){
+    setStatus('cef-status','wait','Сохраняем…');
+    var j=await apiPost('/api/admin/club-schedule-save',{schedule:CEF});
+    if(j.ok){ CEF=Array.isArray(j.schedule)?j.schedule:[]; renderCEF(); setStatus('cef-status','ok','✓ Сохранено'); } else setStatus('cef-status','err',j.error||'Ошибка');
+  };
+  window.cefPublishPlan=async function(){
+    var txt=cefPlanText();
+    setStatus('cef-post-status','wait','Публикуем…');
+    var j=await apiPost('/api/admin/club-post',{text:txt});
+    setStatus('cef-post-status', j.ok?'ok':'err', j.ok?'✓ План опубликован в канал':(j.error||'Ошибка'));
+  };
+  window.cefSendMsg=async function(){
+    var ta=document.getElementById('cef-msg'); var txt=(ta&&ta.value||'').trim();
+    if(!txt){ setStatus('cef-post-status','err','Напишите сообщение.'); return; }
+    setStatus('cef-post-status','wait','Публикуем…');
+    var j=await apiPost('/api/admin/club-post',{text:txt});
+    if(j.ok){ if(ta) ta.value=''; setStatus('cef-post-status','ok','✓ Отправлено в канал'); } else setStatus('cef-post-status','err',j.error||'Ошибка');
   };
 
   // Точка входа: есть токен/dev/Telegram → в кабинет; иначе — форма логина.

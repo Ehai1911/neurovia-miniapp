@@ -186,6 +186,24 @@ export default async function handler(req: any, res: any) {
         }
         return res.status(200).json({ ok: true, done });
       }
+      if (action === 'refreshmenu') {
+        // Переиздать кнопки на закреплённом меню канала (после смены подписей).
+        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '-1003268173530');
+        let mid = Number(req.query.message_id || (await getSetting('main_channel_menu_msg')) || 0);
+        let pinnedFrom: any = null;
+        if (!mid) {
+          const ch = await clubTg('getChat', { chat_id: channel });
+          mid = Number(ch?.result?.pinned_message?.message_id || 0);
+          pinnedFrom = ch?.result?.pinned_message?.from?.id || null;
+        }
+        if (!mid) return res.status(400).json({ ok: false, error: 'pinned menu not found' });
+        const kb = await clubMenuKeyboard();
+        let via = 'sprint';
+        let r = await tg('editMessageReplyMarkup', { chat_id: channel, message_id: mid, reply_markup: kb });
+        if (!r?.ok) { via = 'club'; r = await clubTg('editMessageReplyMarkup', { chat_id: channel, message_id: mid, reply_markup: kb }); }
+        if (r?.ok) await setSetting('main_channel_menu_msg', String(mid));
+        return res.status(200).json({ ok: !!r?.ok, mid, via, pinnedFrom, err: r?.ok ? undefined : r });
+      }
       if (action === 'clubposttest') {
         // Диагностика: постит ли клуб-бот в канал. Возвращает результат Telegram.
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '-1003268173530');

@@ -181,6 +181,12 @@ export default async function handler(req: any, res: any) {
         }
         return res.status(200).json({ ok: true, done });
       }
+      if (action === 'clubposttest') {
+        // Диагностика: постит ли клуб-бот в канал. Возвращает результат Telegram.
+        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '-1003268173530');
+        const r = await clubTg('sendMessage', { chat_id: channel, text: 'тест публикации (клуб-бот)' });
+        return res.status(200).json({ ok: !!r?.ok, message_id: r?.result?.message_id, raw: r?.ok ? undefined : r });
+      }
       if (action === 'channelinvite') {
         // Создать/получить инвайт-ссылку приватного канала (клуб-бот админ) и сохранить.
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '-1003268173530');

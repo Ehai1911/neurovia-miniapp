@@ -375,7 +375,7 @@ export default async function handler(req: any, res: any) {
         const menuMsg = Number(await getSetting('main_channel_menu_msg')) || 0;
         const base = String(isMedia ? (cp.caption || '') : (cp.text || ''));
         const baseEntities = (isMedia ? cp.caption_entities : cp.entities) || [];
-        const already = base.indexOf('🚀 Точка Роста') >= 0; // футер уже добавлен
+        const already = base.indexOf('📺 Видеотека') >= 0; // футер уже добавлен
         if (isContent && cp.message_id !== menuMsg && !already) {
           const parts = await clubFooterParts();
           const prefix = base ? base + '\n\n' : '';

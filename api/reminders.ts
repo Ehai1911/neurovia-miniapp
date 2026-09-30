@@ -1,5 +1,5 @@
 import { supabase } from './_lib/supabase';
-import { sendWithApp, tgCall } from './_lib/bot';
+import { sendWithApp, clubTgCall } from './_lib/bot';
 
 // Напоминания о занятиях. Запускается Vercel Cron раз в день (утром, 09:00 Алматы).
 // Если сегодня (по времени UTC+5) по расписанию потока есть встреча — шлёт студентам
@@ -85,7 +85,7 @@ export default async function handler(req: any, res: any) {
           if (log.indexOf(keyId) >= 0) continue; // уже напоминали
           const t = '🔔 Сегодня' + (s.time ? (' в ' + s.time) : '') + ' — ' + String(s.title || 'эфир') +
             (s.expert ? (' · ' + s.expert) : '') + (s.zoom ? ('\n\n🎥 Подключиться: ' + s.zoom) : '');
-          const j = await tgCall('sendMessage', { chat_id: channel, text: t, disable_web_page_preview: true });
+          const j = await clubTgCall('sendMessage', { chat_id: channel, text: t, disable_web_page_preview: true });
           if (j && j.ok) { clubPosted++; log.push(keyId); }
         }
         await supabase.from('app_settings').upsert(

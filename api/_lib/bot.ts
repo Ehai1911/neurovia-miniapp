@@ -1,8 +1,19 @@
 // Общие помощники Telegram-бота: вызов API и отправка с кнопкой «Открыть спринт».
 const TOKEN = process.env.BOT_TOKEN || '';
+const CLUB_TOKEN = process.env.CLUB_BOT_TOKEN || '';
 
 export async function tgCall(method: string, payload?: any) {
   const r = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  });
+  return r.json();
+}
+
+// Вызов API клуб-ботом (@bahitadminbot) — он админ канала клуба, им и постим в канал.
+export async function clubTgCall(method: string, payload?: any) {
+  const r = await fetch(`https://api.telegram.org/bot${CLUB_TOKEN}/${method}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(payload || {}),

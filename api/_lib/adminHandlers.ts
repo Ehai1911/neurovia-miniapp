@@ -2,7 +2,7 @@ import { resolveAdmin } from './adminAccess';
 import { scopeAllows, COURSE_KEY, displayName } from './db';
 import { supabase } from './supabase';
 import { verifyPassword, signToken, hashPassword } from './adminAuth';
-import { tgCall } from './bot';
+import { tgCall, clubTgCall } from './bot';
 
 // ---------- POST login ----------
 export async function login(req: any, res: any) {
@@ -344,8 +344,9 @@ export async function clubPost(req: any, res: any) {
     if (!text) return res.status(400).json({ ok: false, error: 'Пустое сообщение.' });
     const channel = await getSet('main_channel_id');
     if (!channel) return res.status(400).json({ ok: false, error: 'Канал не настроен.' });
-    const j = await tgCall('sendMessage', { chat_id: channel, text, disable_web_page_preview: true });
-    if (!j || !j.ok) return res.status(200).json({ ok: false, error: 'Не удалось опубликовать (бот — админ канала?).' });
+    // Постим клуб-ботом (@bahitadminbot) — он админ канала. Спринт-бот в канал не пишет.
+    const j = await clubTgCall('sendMessage', { chat_id: channel, text, disable_web_page_preview: true });
+    if (!j || !j.ok) return res.status(200).json({ ok: false, error: 'Не удалось опубликовать: ' + (j?.description || 'бот не админ канала?') });
     return res.status(200).json({ ok: true });
   } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
 }

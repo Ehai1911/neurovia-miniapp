@@ -97,10 +97,12 @@ export default async function handler(req: any, res: any) {
         const shopBtn = shopReady
           ? { text: '🛍 Магазин', url: shop }
           : { text: '🛍 Магазин (скоро)', url: shop };
+        const chatUrl = String((await getSetting('club_chat_url')) || 'https://t.me/+Ev7OzmOXRAhiNGJi');
         const text = '📌 Меню\n\nВыбирайте по кнопкам ниже 👇';
         const keyboard = {
           inline_keyboard: [
             [{ text: '🚀 Точка Рост — эфиры', url: 'https://t.me/bahitadminbot?startapp=video' }],
+            [{ text: '👥 Наш чат', url: chatUrl }],
             [shopBtn],
             [{ text: '💬 Обратная связь', url: 'https://t.me/bahitadminbot?start=support' }],
           ],

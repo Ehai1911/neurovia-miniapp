@@ -19,9 +19,7 @@
   .card h3{font-size:15.5px;margin:0 0 8px;font-weight:600}
   .video{position:relative;padding-top:56.25%;border-radius:10px;overflow:hidden;background:#000}
   .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-  .tapcover{position:absolute;inset:0;z-index:2;border:none;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;
-    background:radial-gradient(circle at 50% 50%, rgba(10,14,26,.96) 0, rgba(10,14,26,.96) 44px, rgba(10,14,26,.55) 62px, transparent 96px)}
-  .tapcover .pmini{width:40px;height:40px;border-radius:50%;background:rgba(201,169,110,.95);color:#12233c;display:flex;align-items:center;justify-content:center;font-size:15px;padding-left:2px;box-shadow:0 1px 6px rgba(0,0,0,.45)}
+  .tapcover{position:absolute;inset:0;z-index:2;background:transparent;border:none;padding:0;cursor:pointer}
   /* Запущенное видео: поворот телефона в альбомную → на весь экран (как на YouTube) */
   @media (orientation:landscape){
     .video.active{position:fixed;inset:0;margin:0;width:100vw;height:100vh;padding-top:0;border-radius:0;z-index:9999;background:#000}
@@ -98,7 +96,7 @@
       if(v.workbook) att+='<a href="'+esc(v.workbook)+'" target="_blank" rel="noopener">📓 Рабочая тетрадь</a>';
       h+='<div class="card">'+
          '<h3>'+esc(v.title||'Эфир')+'</h3>'+
-         '<div class="video" data-i="'+i+'"><iframe src="'+esc(embedSrc(v.embed))+'" allow="accelerometer; autoplay; fullscreen; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe><button class="tapcover" type="button"><span class="pmini">▶</span></button></div>'+
+         '<div class="video" data-i="'+i+'"><iframe src="'+esc(embedSrc(v.embed))+'" allow="accelerometer; autoplay; fullscreen; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe><button class="tapcover" type="button"></button></div>'+
          (att?('<div class="att">'+att+'</div>'):'')+
          '</div>';
     });

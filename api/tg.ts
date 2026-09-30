@@ -81,6 +81,9 @@ export default async function handler(req: any, res: any) {
       if (process.env.ALLOW_DEV_AUTH !== '1') return res.status(403).json({ ok: false, error: 'disabled' });
       if (action === 'clubgetme') return res.status(200).json(await clubTg('getMe'));
       if (action === 'clubmenubutton') {
+        if (req.query.reset === '1') {
+          return res.status(200).json(await clubTg('setChatMenuButton', { menu_button: { type: 'default' } }));
+        }
         const h = req.headers['x-forwarded-host'] || req.headers['host'];
         const url = String(req.query.url || ('https://' + h + '/video.html'));
         const btnText = String(req.query.text || '🚀 Точка Рост');

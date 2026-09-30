@@ -181,6 +181,16 @@ export default async function handler(req: any, res: any) {
         }
         return res.status(200).json({ ok: true, done });
       }
+      if (action === 'channelinvite') {
+        // Создать/получить инвайт-ссылку приватного канала (клуб-бот админ) и сохранить.
+        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '-1003268173530');
+        let link = '';
+        let r = await clubTg('createChatInviteLink', { chat_id: channel, name: 'Точка Роста · возврат в канал' });
+        if (r?.ok) link = r.result?.invite_link || '';
+        if (!link) { r = await clubTg('exportChatInviteLink', { chat_id: channel }); if (r?.ok) link = r.result || ''; }
+        if (link) await setSetting('channel_invite_url', link);
+        return res.status(200).json({ ok: !!link, link, raw: link ? undefined : r });
+      }
       if (action === 'learnpost') {
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
         const appLink = 'https://t.me/neurovia_sprint_bot?startapp';
@@ -257,7 +267,6 @@ export default async function handler(req: any, res: any) {
       const m = u.message;
       if (!m || !m.chat) return res.status(200).json({ ok: true });
       const t = (typeof m.text === 'string') ? m.text.trim() : '';
-      const h = req.headers['x-forwarded-host'] || req.headers['host'];
       const supportGroup = await getSetting('support_group_id');
 
       // --- В ГРУППЕ поддержки ---
@@ -284,15 +293,12 @@ export default async function handler(req: any, res: any) {
       // --- ЛИЧКА с ботом ---
       if (m.chat.type === 'private') {
         if (t.startsWith('/start')) {
-          if (/\bsupport\b/.test(t)) {
-            await clubTg('sendMessage', { chat_id: m.chat.id, text: '💬 Обратная связь клуба «Про Рост Онлайн».\n\nНапишите ваш вопрос прямо сюда — куратор ответит здесь же.' });
-          } else {
-            await clubTg('sendMessage', {
-              chat_id: m.chat.id,
-              text: '🚀 Точка Рост — эфиры с экспертами клуба «Про Рост Онлайн».\nОткрывайте кнопкой ниже 👇',
-              reply_markup: { inline_keyboard: [[{ text: '🚀 Открыть Точку Рост', web_app: { url: 'https://' + h + '/video.html' } }]] },
-            });
-          }
+          const channelUrl = (await getSetting('channel_invite_url')) || (await getSetting('club_chat_url')) || 'https://t.me/+Ev7OzmOXRAhiNGJi';
+          const backKb = { inline_keyboard: [[{ text: '↩️ Вернуться в канал', url: channelUrl }]] };
+          const text = /\bsupport\b/.test(t)
+            ? '💬 Обратная связь клуба «Про Рост Онлайн».\n\nНапишите ваш вопрос прямо сюда — куратор ответит здесь же.'
+            : '👋 Это бот обратной связи клуба «Про Рост Онлайн».\n\nНапишите вопрос куратору прямо сюда — ответ придёт в этот чат.';
+          await clubTg('sendMessage', { chat_id: m.chat.id, text, reply_markup: backKb });
           return res.status(200).json({ ok: true });
         }
         // Любое сообщение → в группу поддержки (с пометкой #id для ответа)

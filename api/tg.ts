@@ -92,7 +92,6 @@ export default async function handler(req: any, res: any) {
       }
       if (action === 'postmenu' || action === 'editmenu') {
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
-        const botLink = 'https://t.me/neurovia_sprint_bot';
         const shopReady = (await getSetting('shop_ready')) === '1';
         const shop = String(req.query.shop || (await getSetting('shop_url')) || (await getSetting('shop_soon_url')) || 'https://t.me/neurovia_sprint_bot');
         const shopBtn = shopReady
@@ -103,7 +102,7 @@ export default async function handler(req: any, res: any) {
           inline_keyboard: [
             [{ text: '🚀 Точка Рост — эфиры', url: 'https://t.me/bahitadminbot?startapp=video' }],
             [shopBtn],
-            [{ text: '💬 Поддержка', url: botLink }],
+            [{ text: '💬 Поддержка', url: 'https://t.me/bahitadminbot?start=support' }],
           ],
         };
         if (action === 'editmenu') {
@@ -218,21 +217,69 @@ export default async function handler(req: any, res: any) {
     // ---------- Приём апдейтов Telegram ----------
     if (req.method !== 'POST') return res.status(200).json({ ok: true, note: 'tg webhook alive' });
 
-    // ----- Вебхук КЛУБНОГО бота (@bahitadminbot): /start → кнопка «Открыть видеотеку» -----
+    // ----- Вебхук КЛУБНОГО бота (@bahitadminbot): видеотека + поддержка -----
     if (req.query?.bot === 'club') {
       const cs = await getSetting('club_webhook_secret');
       if (cs && req.headers['x-telegram-bot-api-secret-token'] !== cs) return res.status(401).json({ ok: false, error: 'bad secret' });
       const u = req.body || {};
       const m = u.message;
-      const t = (m && typeof m.text === 'string') ? m.text.trim() : '';
-      if (m && m.chat?.id && t.startsWith('/start')) {
-        const h = req.headers['x-forwarded-host'] || req.headers['host'];
-        await clubTg('sendMessage', {
-          chat_id: m.chat.id,
-          text: '🚀 Точка Рост — эфиры с экспертами клуба «Про Рост Онлайн».\nОткрывайте кнопкой ниже 👇',
-          reply_markup: { inline_keyboard: [[{ text: '🚀 Открыть Точку Рост', web_app: { url: 'https://' + h + '/video.html' } }]] },
-        });
+      if (!m || !m.chat) return res.status(200).json({ ok: true });
+      const t = (typeof m.text === 'string') ? m.text.trim() : '';
+      const h = req.headers['x-forwarded-host'] || req.headers['host'];
+      const supportGroup = await getSetting('support_group_id');
+
+      // --- В ГРУППЕ поддержки ---
+      if (m.chat.type === 'group' || m.chat.type === 'supergroup') {
+        // Настройка группы: /setsupport → запомнить эту группу как группу поддержки
+        if (t === '/setsupport' || t.startsWith('/setsupport@')) {
+          await setSetting('support_group_id', String(m.chat.id));
+          await clubTg('sendMessage', { chat_id: m.chat.id, text: '✅ Эта группа теперь — поддержка клуба. Отвечайте reply на вопросы участников.' });
+          return res.status(200).json({ ok: true });
+        }
+        // Ответ куратора: reply на сообщение бота с #id → отправить пользователю
+        if (supportGroup && String(m.chat.id) === String(supportGroup) && m.reply_to_message) {
+          const src = (m.reply_to_message.text || m.reply_to_message.caption || '');
+          const mm = src.match(/#(\d{4,})/);
+          const reply = m.text || m.caption || '';
+          if (mm && reply) {
+            const sent = await clubTg('sendMessage', { chat_id: Number(mm[1]), text: '💬 Ответ от куратора:\n\n' + reply });
+            await clubTg('sendMessage', { chat_id: m.chat.id, reply_to_message_id: m.message_id, text: sent?.ok ? '✅ Отправлено участнику.' : '⚠️ Не удалось отправить (участник не открывал бота).' });
+          }
+        }
+        return res.status(200).json({ ok: true });
       }
+
+      // --- ЛИЧКА с ботом ---
+      if (m.chat.type === 'private') {
+        if (t.startsWith('/start')) {
+          if (/\bsupport\b/.test(t)) {
+            await clubTg('sendMessage', { chat_id: m.chat.id, text: '💬 Поддержка клуба «Про Рост Онлайн».\n\nНапишите ваш вопрос прямо сюда — куратор ответит здесь же.' });
+          } else {
+            await clubTg('sendMessage', {
+              chat_id: m.chat.id,
+              text: '🚀 Точка Рост — эфиры с экспертами клуба «Про Рост Онлайн».\nОткрывайте кнопкой ниже 👇',
+              reply_markup: { inline_keyboard: [[{ text: '🚀 Открыть Точку Рост', web_app: { url: 'https://' + h + '/video.html' } }]] },
+            });
+          }
+          return res.status(200).json({ ok: true });
+        }
+        // Любое сообщение → в группу поддержки (с пометкой #id для ответа)
+        if (supportGroup) {
+          const from = m.from || {};
+          const name = [from.first_name, from.last_name].filter(Boolean).join(' ') || from.username || 'Участник';
+          const head = '👤 ' + name + (from.username ? (' (@' + from.username + ')') : '') + ' #' + from.id;
+          if (m.text) {
+            await clubTg('sendMessage', { chat_id: supportGroup, text: head + '\n\n' + m.text });
+          } else {
+            await clubTg('copyMessage', { chat_id: supportGroup, from_chat_id: m.chat.id, message_id: m.message_id, caption: head });
+          }
+          await clubTg('sendMessage', { chat_id: m.chat.id, text: '✅ Ваш вопрос отправлен куратору. Ответ придёт сюда.' });
+        } else {
+          await clubTg('sendMessage', { chat_id: m.chat.id, text: 'Поддержка скоро будет подключена. Напишите позже 🙏' });
+        }
+        return res.status(200).json({ ok: true });
+      }
+
       return res.status(200).json({ ok: true });
     }
 

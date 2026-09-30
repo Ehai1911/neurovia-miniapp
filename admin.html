@@ -395,13 +395,20 @@
       '</div>';
     });
     h+='<button class="btn" style="width:100%;margin-top:8px" onclick="CEF.push({date:\'\',time:\'\',title:\'\',expert:\'\',zoom:\'\'});renderCEF()">+ Добавить эфир</button>'+
-       '<button class="btn primary" style="width:100%;margin-top:8px" onclick="cefSave()">Сохранить план</button>'+
+       '<button class="btn" style="width:100%;margin-top:8px" onclick="cefSave()">💾 Сохранить план</button>'+
        '<span id="cef-status" style="display:block;font-size:13px;margin:6px 0"></span>'+
-       '<div class="card" style="margin-top:12px"><h3>Публикация в канал</h3>'+
-         '<button class="btn" style="width:100%" onclick="cefPublishPlan()">📢 Опубликовать план в канал</button>'+
-         '<div class="muted" style="margin:10px 0 6px">Или своё сообщение в канал:</div>'+
+       // Публикация плана — заметный отдельный блок рядом с расписанием
+       '<div class="card" style="margin-top:14px;border:1.5px solid var(--accent);background:var(--accent-soft)">'+
+         '<h3 style="margin-top:0">📅 Опубликовать расписание</h3>'+
+         '<div class="muted" style="margin-bottom:10px">Отправит план эфиров в канал одним постом. В день эфира бот утром сам напомнит в канале.</div>'+
+         '<button class="btn primary" style="width:100%;font-size:15px;padding:12px" onclick="cefPublishPlan()">📢 Опубликовать план в канал</button>'+
+         '<span id="cef-plan-status" style="display:block;font-size:13px;margin-top:8px"></span>'+
+       '</div>'+
+       // Разовое сообщение — отдельная карточка, не связано с планом
+       '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">✍️ Своё сообщение в канал</h3>'+
+         '<div class="muted" style="margin-bottom:6px">Разовый пост в канал — не связан с расписанием.</div>'+
          '<textarea id="cef-msg" placeholder="Текст сообщения в канал…" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;min-height:70px"></textarea>'+
-         '<button class="btn primary" style="width:100%;margin-top:6px" onclick="cefSendMsg()">✍️ Отправить в канал</button>'+
+         '<button class="btn" style="width:100%;margin-top:6px" onclick="cefSendMsg()">Отправить в канал</button>'+
          '<span id="cef-post-status" style="display:block;font-size:13px;margin-top:6px"></span>'+
        '</div>';
     el.innerHTML=h;
@@ -413,9 +420,10 @@
   };
   window.cefPublishPlan=async function(){
     var txt=cefPlanText();
-    setStatus('cef-post-status','wait','Публикуем…');
+    if(!CEF.some(function(s){return s.date&&s.title;})){ setStatus('cef-plan-status','err','В плане нет эфиров с датой и темой. Добавьте и сохраните.'); return; }
+    setStatus('cef-plan-status','wait','Публикуем…');
     var j=await apiPost('/api/admin/club-post',{text:txt});
-    setStatus('cef-post-status', j.ok?'ok':'err', j.ok?'✓ План опубликован в канал':(j.error||'Ошибка'));
+    setStatus('cef-plan-status', j.ok?'ok':'err', j.ok?'✓ План опубликован в канал':(j.error||'Ошибка'));
   };
   window.cefSendMsg=async function(){
     var ta=document.getElementById('cef-msg'); var txt=(ta&&ta.value||'').trim();

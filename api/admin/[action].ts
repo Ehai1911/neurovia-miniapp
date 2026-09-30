@@ -14,6 +14,7 @@ const MAP: Record<string, (req: any, res: any) => Promise<any>> = {
   'update-cohort': H.updateCohort,
   'support': H.support,
   'support-resolve': H.supportResolve,
+  'support-reply': H.supportReply,
   'videos-list': H.videosList,
   'videos-save': H.videosSave,
 };

@@ -2,6 +2,7 @@ import { resolveAdmin } from './adminAccess';
 import { scopeAllows, COURSE_KEY, displayName } from './db';
 import { supabase } from './supabase';
 import { verifyPassword, signToken, hashPassword } from './adminAuth';
+import { tgCall } from './bot';
 
 // ---------- POST login ----------
 export async function login(req: any, res: any) {
@@ -215,6 +216,25 @@ export async function support(req: any, res: any) {
     const newCount = messages.filter((m: any) => m.status === 'new').length;
     return res.status(200).json({ ok: true, messages, newCount });
   } catch (e: any) { return res.status(401).json({ ok: false, error: String(e?.message || e) }); }
+}
+
+// ---------- POST support-reply {id, text} → ответ студенту в бота Спринта ----------
+export async function supportReply(req: any, res: any) {
+  try {
+    const { scope } = await resolveAdmin(req);
+    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
+    const id = req.body?.id;
+    const text = String(req.body?.text || '').trim();
+    if (!id || !text) return res.status(400).json({ ok: false, error: 'Нужен id и текст ответа.' });
+    const { data: m } = await supabase.from('support_messages').select('cohort_id, tg_id').eq('id', id).maybeSingle();
+    if (!m) return res.status(404).json({ ok: false, error: 'not found' });
+    if (!scope.global && m.cohort_id && !scopeAllows(scope, m.cohort_id)) return res.status(403).json({ ok: false, error: 'no access' });
+    if (!m.tg_id) return res.status(400).json({ ok: false, error: 'Нет Telegram id участника.' });
+    const j = await tgCall('sendMessage', { chat_id: m.tg_id, text: '💬 Ответ от куратора:\n\n' + text });
+    if (!j || !j.ok) return res.status(200).json({ ok: false, error: 'Не удалось отправить (участник не открывал бота).' });
+    await supabase.from('support_messages').update({ status: 'done' }).eq('id', id);
+    return res.status(200).json({ ok: true });
+  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
 }
 
 // ---------- POST support-resolve {id} ----------

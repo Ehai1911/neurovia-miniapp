@@ -120,7 +120,7 @@
       '<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="loadCohortsList()">👥 Потоки</button></div>'+
       '<div class="row" style="margin:0 0 4px"><button class="btn" style="width:100%" onclick="openSupport()">🆘 Обращения <span id="sup-badge"></span></button></div>'+
       sect('🌱 КЛУБ «ПРО РОСТ ОНЛАЙН»')+
-      '<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="openVideos()">🚀 Точка Роста</button></div>'+
+      '<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="openVideos()">📺 Видеотека</button></div>'+
       '<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="openClubEfiry()">📅 Эфиры и рассылка</button></div>';
     el.innerHTML=h;
     apiGet('/api/admin/support').then(function(sj){ var b=document.getElementById('sup-badge'); if(b && sj && sj.ok && sj.newCount>0){ b.innerHTML='<span class="chip c-amber">'+sj.newCount+' новых</span>'; } });
@@ -324,10 +324,45 @@
   };
 
   // ---- Видеотека ----
+  // ---- Разделы видеотеки (общие для видео и эфиров) ----
+  var SEC=[];
+  async function loadSections(){
+    var j=await apiGet('/api/admin/sections-list');
+    SEC=(j&&j.ok&&Array.isArray(j.sections))?j.sections:[];
+    if(!SEC.length) SEC=[{id:'tochka-rosta',title:'Точка Роста',emoji:'🚀'}];
+  }
+  function secName(id){ var f=SEC.filter(function(s){return s.id===id;})[0]; return f?((f.emoji?f.emoji+' ':'')+f.title):''; }
+  function secOptions(sel){ var o='<option value="">— без раздела —</option>'; SEC.forEach(function(s){ o+='<option value="'+esc(s.id)+'"'+(s.id===sel?' selected':'')+'>'+esc((s.emoji?s.emoji+' ':'')+s.title)+'</option>'; }); return o; }
+  function secPanel(){
+    var h='<div class="card" style="border:1.5px solid var(--accent);background:var(--accent-soft)"><h3 style="margin-top:0">🗂 Разделы видеотеки</h3>'+
+      '<div class="muted" style="margin-bottom:8px">По ним раскладываются видео и эфиры. Первый — по умолчанию. Сохраните разделы, прежде чем раскидывать по ним.</div>';
+    SEC.forEach(function(s,i){
+      h+='<div class="row" style="gap:6px;margin-bottom:6px">'+
+         '<input value="'+esc(s.emoji||'')+'" oninput="SEC['+i+'].emoji=this.value" placeholder="эмодзи" style="width:58px;padding:7px;border-radius:8px">'+
+         '<input value="'+esc(s.title||'')+'" oninput="SEC['+i+'].title=this.value" placeholder="Название раздела" style="flex:1;padding:7px;border-radius:8px">'+
+         '<button class="btn" onclick="secMove('+i+',-1)">↑</button><button class="btn" onclick="secDel('+i+')">✕</button>'+
+      '</div>';
+    });
+    h+='<div class="row" style="gap:6px;margin-top:6px"><button class="btn" onclick="secAdd()">+ Раздел</button>'+
+       '<button class="btn primary" onclick="secSave()">Сохранить разделы</button></div>'+
+       '<span id="sec-status" style="display:block;font-size:13px;margin-top:6px"></span></div>';
+    return h;
+  }
+  window.secAdd=function(){ SEC.push({id:'s'+Math.random().toString(36).slice(2,8),title:'',emoji:''}); renderVideos(); };
+  window.secDel=function(i){ SEC.splice(i,1); renderVideos(); };
+  window.secMove=function(i,d){ var n=i+d; if(n<0||n>=SEC.length) return; var t=SEC[n]; SEC[n]=SEC[i]; SEC[i]=t; renderVideos(); };
+  window.secSave=async function(){
+    setStatus('sec-status','wait','Сохраняем…');
+    var j=await apiPost('/api/admin/sections-save',{sections:SEC});
+    if(j.ok){ SEC=Array.isArray(j.sections)?j.sections:[]; renderVideos(); setStatus('sec-status','ok','✓ Разделы сохранены'); }
+    else setStatus('sec-status','err',j.error||'Ошибка');
+  };
+
   var VIDS=[];
   window.openVideos = async function(){
     only('list'); document.getElementById('sub').textContent='видеотека';
     var el=document.getElementById('list'); el.innerHTML='<div class="muted">Загрузка…</div>';
+    await loadSections();
     var j=await apiGet('/api/admin/videos-list');
     if(!j.ok){ if(j._status===401||j._status===403){ showLogin(j._status===401?'Сессия истекла — войдите заново.':''); return; } el.innerHTML='<button class="back" onclick="loadHome()">← в кабинет</button><div class="err">'+esc(j.error||'Ошибка')+'</div>'; return; }
     VIDS=Array.isArray(j.videos)?j.videos:[];
@@ -335,14 +370,16 @@
   };
   window.renderVideos = function(){
     var el=document.getElementById('list');
-    var h='<button class="back" onclick="loadHome()">← в кабинет</button><h2>Точка Рост — эфиры</h2>'+
-      '<div class="muted" style="margin-bottom:10px">Эфир = видео + (по желанию) презентация и рабочая тетрадь. Можно вставлять весь iframe или ссылку. Порядок карточек = порядок в приложении. Видят только участники клуба.</div>';
+    var h='<button class="back" onclick="loadHome()">← в кабинет</button><h2>Видеотека</h2>'+
+      secPanel()+
+      '<div class="muted" style="margin:14px 0 10px">Эфир = видео + (по желанию) презентация и рабочая тетрадь и раздел. Можно вставлять весь iframe или ссылку. Порядок карточек = порядок в разделе. Видят только участники клуба.</div>';
     VIDS.forEach(function(v,i){
       h+='<div class="card">'+
         '<input placeholder="Название эфира (напр. День 1 — Анастасия Юрченко)" value="'+esc(v.title||'')+'" oninput="VIDS['+i+'].title=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box">'+
         '<input placeholder="Видео: ссылка или весь iframe" value="'+esc(v.embed||'')+'" oninput="VIDS['+i+'].embed=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;margin-top:6px">'+
         '<input placeholder="Презентация: ссылка (необязательно)" value="'+esc(v.presentation||'')+'" oninput="VIDS['+i+'].presentation=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;margin-top:6px">'+
         '<input placeholder="Рабочая тетрадь: ссылка (необязательно)" value="'+esc(v.workbook||'')+'" oninput="VIDS['+i+'].workbook=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;margin-top:6px">'+
+        '<select onchange="VIDS['+i+'].section=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;margin-top:6px">'+secOptions(v.section||'')+'</select>'+
         '<div class="row" style="gap:6px;margin-top:8px"><button class="btn" onclick="vidMove('+i+',-1)">↑</button><button class="btn" onclick="vidMove('+i+',1)">↓</button><button class="btn" onclick="vidDel('+i+')">Удалить</button></div>'+
       '</div>';
     });
@@ -351,7 +388,7 @@
        '<span id="vid-status" style="display:block;font-size:13px;margin-top:8px"></span>';
     el.innerHTML=h;
   };
-  window.vidAdd=function(){ VIDS.push({title:'',embed:'',presentation:'',workbook:''}); renderVideos(); };
+  window.vidAdd=function(){ VIDS.push({title:'',embed:'',presentation:'',workbook:'',section:(SEC[0]&&SEC[0].id)||''}); renderVideos(); };
   window.vidDel=function(i){ VIDS.splice(i,1); renderVideos(); };
   window.vidMove=function(i,d){ var n=i+d; if(n<0||n>=VIDS.length) return; var t=VIDS[n]; VIDS[n]=VIDS[i]; VIDS[i]=t; renderVideos(); };
   window.vidSave=async function(){
@@ -366,19 +403,32 @@
   window.openClubEfiry = async function(){
     only('list'); document.getElementById('sub').textContent='эфиры клуба';
     var el=document.getElementById('list'); el.innerHTML='<div class="muted">Загрузка…</div>';
+    await loadSections();
     var j=await apiGet('/api/admin/club-schedule-list');
     if(!j.ok){ if(j._status===401||j._status===403){ showLogin(j._status===401?'Сессия истекла — войдите заново.':''); return; } el.innerHTML='<button class="back" onclick="loadHome()">← в кабинет</button><div class="err">'+esc(j.error||'Ошибка')+'</div>'; return; }
     CEF=Array.isArray(j.schedule)?j.schedule:[];
     renderCEF();
   };
   var RU_MON=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
-  function cefPlanText(){
+  function planLine(s){ var d=String(s.date).split('-'); var day=+d[2], mo=RU_MON[(+d[1])-1]||''; return '🗓 '+day+' '+mo+(s.time?(', '+s.time):'')+' — '+s.title+(s.expert?(' · '+s.expert):''); }
+  function cefPlanText(secId){
+    var items=CEF.filter(function(s){return s.date&&s.title&&(!secId||s.section===secId);});
+    if(secId){
+      var out=['📅 План эфиров · '+secName(secId),''];
+      items.forEach(function(s){ out.push(planLine(s)); });
+      return out.join('\n');
+    }
     var lines=['📅 План эфиров',''];
-    CEF.filter(function(s){return s.date&&s.title;}).forEach(function(s){
-      var d=String(s.date).split('-'); var day=+d[2], mo=RU_MON[(+d[1])-1]||'';
-      lines.push('🗓 '+day+' '+mo+(s.time?(', '+s.time):'')+' — '+s.title+(s.expert?(' · '+s.expert):''));
+    SEC.forEach(function(sec){
+      var g=items.filter(function(s){return s.section===sec.id;});
+      if(!g.length) return;
+      lines.push((sec.emoji?sec.emoji+' ':'')+sec.title+':');
+      g.forEach(function(s){ lines.push(planLine(s)); });
+      lines.push('');
     });
-    return lines.join('\n');
+    var noSec=items.filter(function(s){return !s.section||!SEC.some(function(x){return x.id===s.section;});});
+    if(noSec.length){ lines.push('Без раздела:'); noSec.forEach(function(s){ lines.push(planLine(s)); }); }
+    return lines.join('\n').replace(/\n+$/,'');
   }
   window.renderCEF=function(){
     var el=document.getElementById('list');
@@ -391,16 +441,18 @@
         '<input placeholder="Тема эфира" value="'+esc(s.title||'')+'" oninput="CEF['+i+'].title=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;margin-top:6px">'+
         '<input placeholder="Эксперт" value="'+esc(s.expert||'')+'" oninput="CEF['+i+'].expert=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;margin-top:6px">'+
         '<input placeholder="Ссылка Zoom (для напоминания)" value="'+esc(s.zoom||'')+'" oninput="CEF['+i+'].zoom=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;margin-top:6px">'+
+        '<select onchange="CEF['+i+'].section=this.value" style="width:100%;padding:8px;border-radius:8px;box-sizing:border-box;margin-top:6px">'+secOptions(s.section||'')+'</select>'+
         '<div class="row" style="margin-top:8px"><button class="btn" onclick="CEF.splice('+i+',1);renderCEF()">Удалить</button></div>'+
       '</div>';
     });
-    h+='<button class="btn" style="width:100%;margin-top:8px" onclick="CEF.push({date:\'\',time:\'\',title:\'\',expert:\'\',zoom:\'\'});renderCEF()">+ Добавить эфир</button>'+
+    h+='<button class="btn" style="width:100%;margin-top:8px" onclick="cefAdd()">+ Добавить эфир</button>'+
        '<button class="btn" style="width:100%;margin-top:8px" onclick="cefSave()">💾 Сохранить план</button>'+
        '<span id="cef-status" style="display:block;font-size:13px;margin:6px 0"></span>'+
        // Публикация плана — заметный отдельный блок рядом с расписанием
        '<div class="card" style="margin-top:14px;border:1.5px solid var(--accent);background:var(--accent-soft)">'+
          '<h3 style="margin-top:0">📅 Опубликовать расписание</h3>'+
          '<div class="muted" style="margin-bottom:10px">Отправит план эфиров в канал одним постом. В день эфира бот утром сам напомнит в канале.</div>'+
+         '<select id="cef-plan-sec" style="width:100%;padding:9px;border-radius:8px;box-sizing:border-box;margin-bottom:8px"><option value="">Весь план (все разделы)</option>'+SEC.map(function(s){return '<option value="'+esc(s.id)+'">'+esc((s.emoji?s.emoji+' ':'')+s.title)+'</option>';}).join('')+'</select>'+
          '<button class="btn primary" style="width:100%;font-size:15px;padding:12px" onclick="cefPublishPlan()">📢 Опубликовать план в канал</button>'+
          '<span id="cef-plan-status" style="display:block;font-size:13px;margin-top:8px"></span>'+
        '</div>'+
@@ -418,11 +470,12 @@
     var j=await apiPost('/api/admin/club-schedule-save',{schedule:CEF});
     if(j.ok){ CEF=Array.isArray(j.schedule)?j.schedule:[]; renderCEF(); setStatus('cef-status','ok','✓ Сохранено'); } else setStatus('cef-status','err',j.error||'Ошибка');
   };
+  window.cefAdd=function(){ CEF.push({date:'',time:'',title:'',expert:'',zoom:'',section:(SEC[0]&&SEC[0].id)||''}); renderCEF(); };
   window.cefPublishPlan=async function(){
-    var txt=cefPlanText();
-    if(!CEF.some(function(s){return s.date&&s.title;})){ setStatus('cef-plan-status','err','В плане нет эфиров с датой и темой. Добавьте и сохраните.'); return; }
+    var sel=document.getElementById('cef-plan-sec'); var secId=sel?sel.value:'';
+    if(!CEF.some(function(s){return s.date&&s.title&&(!secId||s.section===secId);})){ setStatus('cef-plan-status','err','Нет эфиров с датой и темой'+(secId?' в этом разделе':'')+'. Добавьте и сохраните.'); return; }
     setStatus('cef-plan-status','wait','Публикуем…');
-    var j=await apiPost('/api/admin/club-post',{text:txt});
+    var j=await apiPost('/api/admin/club-post',{text:cefPlanText(secId)});
     setStatus('cef-plan-status', j.ok?'ok':'err', j.ok?'✓ План опубликован в канал':(j.error||'Ошибка'));
   };
   window.cefSendMsg=async function(){

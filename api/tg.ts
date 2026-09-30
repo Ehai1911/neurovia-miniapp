@@ -39,7 +39,7 @@ async function setSetting(key: string, value: string) {
 async function clubFooterParts() {
   const chatUrl = (await getSetting('club_chat_url')) || 'https://t.me/+Ev7OzmOXRAhiNGJi';
   return [
-    { t: '🚀 Точка Роста', u: 'https://t.me/bahitadminbot?startapp=video' },
+    { t: '📺 Видеотека', u: 'https://t.me/bahitadminbot?startapp=video' },
     { t: '👥 Наш чат', u: chatUrl },
     { t: '💬 Обратная связь', u: 'https://t.me/bahitadminbot?start=support' },
   ];
@@ -53,7 +53,7 @@ async function clubMenuKeyboard() {
   return {
     inline_keyboard: [
       [
-        { text: '🚀 Точка Роста', url: 'https://t.me/bahitadminbot?startapp=video' },
+        { text: '📺 Видеотека', url: 'https://t.me/bahitadminbot?startapp=video' },
         { text: '👥 Наш чат', url: chatUrl },
       ],
       [
@@ -82,8 +82,13 @@ export default async function handler(req: any, res: any) {
       const st = r?.result?.status;
       const member = st === 'creator' || st === 'administrator' || st === 'member' || (st === 'restricted' && !!r.result?.is_member);
       let videos: any[] = [];
-      if (member) { try { videos = JSON.parse((await getSetting('videos')) || '[]'); } catch { videos = []; } }
-      return res.status(200).json({ ok: true, member: !!member, videos: member ? videos : [] });
+      let sections: any[] = [];
+      if (member) {
+        try { videos = JSON.parse((await getSetting('videos')) || '[]'); } catch { videos = []; }
+        try { sections = JSON.parse((await getSetting('club_sections')) || '[]'); } catch { sections = []; }
+        if (!Array.isArray(sections) || !sections.length) sections = [{ id: 'tochka-rosta', title: 'Точка Роста', emoji: '🚀' }];
+      }
+      return res.status(200).json({ ok: true, member: !!member, videos: member ? videos : [], sections: member ? sections : [] });
     }
 
     // ---------- Сервисные действия (dev) ----------

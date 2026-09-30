@@ -15,6 +15,8 @@ const MAP: Record<string, (req: any, res: any) => Promise<any>> = {
   'support': H.support,
   'support-resolve': H.supportResolve,
   'support-reply': H.supportReply,
+  'sections-list': H.sectionsList,
+  'sections-save': H.sectionsSave,
   'videos-list': H.videosList,
   'videos-save': H.videosSave,
   'club-schedule-list': H.clubScheduleList,

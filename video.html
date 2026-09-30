@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Точка Роста</title>
+<title>Видеотека</title>
 <style>
   :root{--bg:#0F172A;--topbar:#1E3A5F;--accent:#C9A96E;--card:#18263E;--ink:#EAF0F8;--muted:#9FB2CC;--line:#2B3E5C;}
   *{box-sizing:border-box}
@@ -34,6 +34,13 @@
   .vtile .playic span{width:54px;height:54px;border-radius:50%;background:rgba(201,169,110,.92);color:#12233c;display:flex;align-items:center;justify-content:center;font-size:22px;padding-left:3px;box-shadow:0 2px 10px rgba(0,0,0,.4)}
   .vtile .vtitle{padding:11px 14px;font-size:15.5px;font-weight:600}
   .back{background:none;border:none;color:var(--accent);font:inherit;font-size:14.5px;font-weight:600;cursor:pointer;padding:6px 2px;margin-bottom:8px}
+  /* Плитки разделов */
+  .sectile{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;cursor:pointer;color:var(--ink);font:inherit}
+  .sectile .semoji{font-size:24px;width:46px;height:46px;flex:none;display:flex;align-items:center;justify-content:center;background:#22344F;border-radius:12px}
+  .sectile .sinfo{flex:1;display:flex;flex-direction:column;gap:2px}
+  .sectile .sname{font-size:16px;font-weight:600}
+  .sectile .scount{font-size:12.5px;color:var(--muted)}
+  .sectile .sarr{font-size:22px;color:var(--muted);flex:none}
   .pl-title{font-size:17px;font-weight:600;margin:12px 2px 0}
   .hint{color:var(--muted);font-size:13px;line-height:1.5}
   .btn{display:block;width:100%;text-align:center;border:none;border-radius:10px;padding:12px;font-size:14.5px;font-weight:600;
@@ -50,7 +57,7 @@
 <body>
   <header>
     <span class="dot"><img src="files/prorost-logo.jpg" alt=""></span>
-    <div><h1>Точка Роста</h1><div class="sub">Эфиры с экспертами</div></div>
+    <div><h1>Видеотека</h1><div class="sub">Клуб «Про Рост Онлайн»</div></div>
   </header>
   <div id="app"><div class="load">Загрузка…</div></div>
 
@@ -85,36 +92,69 @@
     });
   }
 
-  var VIDEOS=[];
-  function renderList(){
+  var ALL=[], SECTIONS=[], CURRENT=[], GS=[];
+  function knownSec(id){ return SECTIONS.some(function(s){return s.id===id;}); }
+  // Раздел видео: свой, если существует; иначе — первый (туда падают старые видео без раздела).
+  function effSec(v){ return (v.section && knownSec(v.section)) ? v.section : (SECTIONS[0] && SECTIONS[0].id || ''); }
+  function groups(){
+    return SECTIONS.map(function(s){
+      return { sec:s, vids: ALL.filter(function(v){ return effSec(v)===s.id; }) };
+    }).filter(function(g){ return g.vids.length>0; });
+  }
+  function videoCard(v,i){
+    var att='';
+    if(v.presentation) att+='<a href="'+esc(v.presentation)+'" target="_blank" rel="noopener">📊 Презентация</a>';
+    if(v.workbook) att+='<a href="'+esc(v.workbook)+'" target="_blank" rel="noopener">📓 Рабочая тетрадь</a>';
+    return '<div class="card">'+
+      '<h3>'+esc(v.title||'Эфир')+'</h3>'+
+      '<div class="video" data-i="'+i+'"><iframe src="'+esc(embedSrc(v.embed))+'" allow="accelerometer; autoplay; fullscreen; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe><button class="tapcover" type="button"></button></div>'+
+      (att?('<div class="att">'+att+'</div>'):'')+
+      '</div>';
+  }
+  // Главный экран: если разделов с видео больше одного — плитки разделов; иначе сразу список.
+  function renderHome(){
+    GS=groups();
+    if(GS.length<=1){ var g=GS[0]; renderList(g?g.vids:[], g?g.sec.title:'', false); return; }
     var app=document.getElementById('app');
-    if(!VIDEOS.length){ app.innerHTML='<div class="card"><p class="hint">Эфиры скоро появятся здесь.</p></div>'; return; }
-    var h='';
-    VIDEOS.forEach(function(v,i){
-      var att='';
-      if(v.presentation) att+='<a href="'+esc(v.presentation)+'" target="_blank" rel="noopener">📊 Презентация</a>';
-      if(v.workbook) att+='<a href="'+esc(v.workbook)+'" target="_blank" rel="noopener">📓 Рабочая тетрадь</a>';
-      h+='<div class="card">'+
-         '<h3>'+esc(v.title||'Эфир')+'</h3>'+
-         '<div class="video" data-i="'+i+'"><iframe src="'+esc(embedSrc(v.embed))+'" allow="accelerometer; autoplay; fullscreen; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe><button class="tapcover" type="button"></button></div>'+
-         (att?('<div class="att">'+att+'</div>'):'')+
-         '</div>';
+    var h='<div class="pl-title" style="margin:2px 2px 10px">Разделы</div>';
+    GS.forEach(function(g,i){
+      h+='<button class="sectile" data-si="'+i+'" type="button">'+
+           '<span class="semoji">'+esc(g.sec.emoji||'📺')+'</span>'+
+           '<span class="sinfo"><span class="sname">'+esc(g.sec.title)+'</span>'+
+           '<span class="scount">'+g.vids.length+' видео</span></span>'+
+           '<span class="sarr">›</span>'+
+         '</button>';
     });
     app.innerHTML=h;
+  }
+  function renderList(vids,title,withBack){
+    CURRENT=vids||[];
+    var app=document.getElementById('app');
+    var h='';
+    if(withBack) h+='<button class="back" id="back-sec">← Разделы</button>';
+    if(title) h+='<div class="pl-title" style="margin-bottom:10px">'+esc(title)+'</div>';
+    if(!CURRENT.length){ h+='<div class="card"><p class="hint">Здесь пока нет видео.</p></div>'; app.innerHTML=h; }
+    else { CURRENT.forEach(function(v,i){ h+=videoCard(v,i); }); app.innerHTML=h; }
+    var bk=document.getElementById('back-sec'); if(bk) bk.addEventListener('click',function(){ renderHome(); });
   }
 
   function boot(){
     api('/api/tg?action=clubcheck').then(function(j){
       if(!j || !j.ok){ document.getElementById('app').innerHTML='<div class="card"><p class="hint">Не удалось загрузить. Откройте из бота ещё раз.</p></div>'; return; }
       if(!j.member){ renderGate(); return; }
-      VIDEOS=Array.isArray(j.videos)?j.videos:[]; renderList();
+      ALL=Array.isArray(j.videos)?j.videos:[];
+      SECTIONS=(Array.isArray(j.sections)&&j.sections.length)?j.sections:[{id:'tochka-rosta',title:'Точка Роста',emoji:'🚀'}];
+      renderHome();
     }).catch(function(){ document.getElementById('app').innerHTML='<div class="card"><p class="hint">Ошибка загрузки.</p></div>'; });
   }
-  // Тап по видео → запускаем его прямо здесь (без отдельной вкладки) и делаем активным.
   document.addEventListener('click',function(e){
+    // Тап по разделу → его видео
+    var st=e.target.closest('.sectile');
+    if(st){ var g=GS[+st.getAttribute('data-si')]; if(g) renderList(g.vids, g.sec.title, true); return; }
+    // Тап по видео → запускаем прямо здесь (без отдельной вкладки) и делаем активным
     var cover=e.target.closest('.tapcover'); if(!cover) return;
     var vd=cover.closest('.video'); if(!vd) return;
-    var v=VIDEOS[+vd.getAttribute('data-i')];
+    var v=CURRENT[+vd.getAttribute('data-i')];
     document.querySelectorAll('.video.active').forEach(function(x){ x.classList.remove('active'); });
     vd.classList.add('active');
     var ifr=vd.querySelector('iframe'); if(ifr && v){ ifr.src=embedSrc(v.embed,true); }

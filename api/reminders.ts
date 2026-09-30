@@ -76,6 +76,12 @@ export default async function handler(req: any, res: any) {
       const channel = settings['main_channel_id'];
       let clubSched: any[] = [];
       try { clubSched = JSON.parse(settings['club_schedule'] || '[]'); } catch { clubSched = []; }
+      let clubSections: any[] = [];
+      try { clubSections = JSON.parse(settings['club_sections'] || '[]'); } catch { clubSections = []; }
+      const secName = (id: string) => {
+        const f = (clubSections || []).find((x: any) => x && x.id === id);
+        return f ? ((f.emoji ? f.emoji + ' ' : '') + f.title) : '';
+      };
       let log: string[] = [];
       try { log = JSON.parse(settings['club_reminder_log'] || '[]'); } catch { log = []; }
       if (channel && Array.isArray(clubSched)) {
@@ -83,8 +89,9 @@ export default async function handler(req: any, res: any) {
           if (String(s?.date || '').slice(0, 10) !== todayKZ) continue;
           const keyId = s.date + '|' + (s.time || '') + '|' + String(s.title || '').slice(0, 40);
           if (log.indexOf(keyId) >= 0) continue; // уже напоминали
+          const sec = secName(String(s.section || ''));
           const t = '🔔 Сегодня' + (s.time ? (' в ' + s.time) : '') + ' — ' + String(s.title || 'эфир') +
-            (s.expert ? (' · ' + s.expert) : '') + (s.zoom ? ('\n\n🎥 Подключиться: ' + s.zoom) : '');
+            (s.expert ? (' · ' + s.expert) : '') + (sec ? ('\n' + sec) : '') + (s.zoom ? ('\n\n🎥 Подключиться: ' + s.zoom) : '');
           const j = await clubTgCall('sendMessage', { chat_id: channel, text: t, disable_web_page_preview: true });
           if (j && j.ok) { clubPosted++; log.push(keyId); }
         }

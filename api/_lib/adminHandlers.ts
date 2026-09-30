@@ -325,6 +325,7 @@ export async function clubScheduleSave(req: any, res: any) {
         title: String(s?.title || '').slice(0, 200),
         expert: String(s?.expert || '').slice(0, 120),
         zoom: String(s?.zoom || '').slice(0, 500),
+        section: String(s?.section || '').slice(0, 40),
       }))
       .filter((s: any) => s.date && s.title)
       .sort((a: any, b: any) => (a.date + (a.time || '') < b.date + (b.time || '') ? -1 : 1));
@@ -348,6 +349,43 @@ export async function clubPost(req: any, res: any) {
     const j = await clubTgCall('sendMessage', { chat_id: channel, text, disable_web_page_preview: true });
     if (!j || !j.ok) return res.status(200).json({ ok: false, error: 'Не удалось опубликовать: ' + (j?.description || 'бот не админ канала?') });
     return res.status(200).json({ ok: true });
+  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
+}
+
+// Разделы видеотеки по умолчанию (первый — «Точка Роста», в него уедут старые видео).
+export const DEFAULT_SECTIONS = [{ id: 'tochka-rosta', title: 'Точка Роста', emoji: '🚀' }];
+
+function sectionId(s: any): string {
+  const raw = String(s?.id || '').trim().slice(0, 40);
+  return raw || ('s' + Math.random().toString(36).slice(2, 8));
+}
+
+// ---------- GET sections-list ----------
+export async function sectionsList(req: any, res: any) {
+  try {
+    const { scope } = await resolveAdmin(req);
+    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
+    let list: any[] = [];
+    try { list = JSON.parse((await getSet('club_sections')) || '[]'); } catch { list = []; }
+    if (!Array.isArray(list) || !list.length) list = DEFAULT_SECTIONS;
+    return res.status(200).json({ ok: true, sections: list });
+  } catch (e: any) { return res.status(401).json({ ok: false, error: String(e?.message || e) }); }
+}
+
+// ---------- POST sections-save { sections:[{id,title,emoji}] } ----------
+export async function sectionsSave(req: any, res: any) {
+  try {
+    const { scope } = await resolveAdmin(req);
+    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
+    const raw = Array.isArray(req.body?.sections) ? req.body.sections : [];
+    const clean = raw
+      .map((s: any) => ({ id: sectionId(s), title: String(s?.title || '').slice(0, 80), emoji: String(s?.emoji || '').slice(0, 8) }))
+      .filter((s: any) => s.title);
+    const final = clean.length ? clean : DEFAULT_SECTIONS;
+    await supabase.from('app_settings').upsert(
+      { key: 'club_sections', value: JSON.stringify(final), updated_at: new Date().toISOString() },
+      { onConflict: 'key' });
+    return res.status(200).json({ ok: true, sections: final });
   } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
 }
 
@@ -375,6 +413,7 @@ export async function videosSave(req: any, res: any) {
         embed: extractEmbed(v?.embed).slice(0, 500),
         presentation: extractUrl(v?.presentation).slice(0, 500),
         workbook: extractUrl(v?.workbook).slice(0, 500),
+        section: String(v?.section || '').slice(0, 40),
       }))
       .filter((v: any) => v.embed);
     await supabase.from('app_settings').upsert(

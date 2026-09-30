@@ -102,7 +102,7 @@ export default async function handler(req: any, res: any) {
           inline_keyboard: [
             [{ text: '🚀 Точка Рост — эфиры', url: 'https://t.me/bahitadminbot?startapp=video' }],
             [shopBtn],
-            [{ text: '💬 Поддержка', url: 'https://t.me/bahitadminbot?start=support' }],
+            [{ text: '💬 Обратная связь', url: 'https://t.me/bahitadminbot?start=support' }],
           ],
         };
         if (action === 'editmenu') {
@@ -253,7 +253,7 @@ export default async function handler(req: any, res: any) {
       if (m.chat.type === 'private') {
         if (t.startsWith('/start')) {
           if (/\bsupport\b/.test(t)) {
-            await clubTg('sendMessage', { chat_id: m.chat.id, text: '💬 Поддержка клуба «Про Рост Онлайн».\n\nНапишите ваш вопрос прямо сюда — куратор ответит здесь же.' });
+            await clubTg('sendMessage', { chat_id: m.chat.id, text: '💬 Обратная связь клуба «Про Рост Онлайн».\n\nНапишите ваш вопрос прямо сюда — куратор ответит здесь же.' });
           } else {
             await clubTg('sendMessage', {
               chat_id: m.chat.id,

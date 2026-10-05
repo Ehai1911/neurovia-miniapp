@@ -355,6 +355,22 @@ export default async function handler(req: any, res: any) {
           await clubTg('sendMessage', { chat_id: m.chat.id, text: '✅ Эта группа теперь — поддержка клуба. Отвечайте reply на вопросы участников.' });
           return res.status(200).json({ ok: true });
         }
+        // Чат клуба: /clubmenu → бот ставит и закрепляет кнопку «Вернуться в канал клуба»
+        if (t === '/clubmenu' || t.startsWith('/clubmenu@')) {
+          const back = (await getSetting('club_back_url')) || 'https://t.me/+noeVIrQHUsQ5NDli';
+          const sent = await clubTg('sendMessage', {
+            chat_id: m.chat.id,
+            text: '📌 Клуб «Про Рост Онлайн»\n\nЧтобы вернуться в канал клуба — нажмите кнопку ниже 👇',
+            reply_markup: { inline_keyboard: [[{ text: '📢 Вернуться в канал клуба', url: back }]] },
+          });
+          if (sent?.ok) {
+            await clubTg('pinChatMessage', { chat_id: m.chat.id, message_id: sent.result.message_id, disable_notification: true });
+            await setSetting('club_chat_id', String(m.chat.id));
+            await setSetting('club_chat_menu_msg', String(sent.result.message_id));
+          }
+          await clubTg('deleteMessage', { chat_id: m.chat.id, message_id: m.message_id });
+          return res.status(200).json({ ok: true });
+        }
         // Ответ куратора: reply на сообщение бота с #id → отправить пользователю
         if (supportGroup && String(m.chat.id) === String(supportGroup) && m.reply_to_message) {
           const src = (m.reply_to_message.text || m.reply_to_message.caption || '');

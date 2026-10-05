@@ -231,6 +231,28 @@ export default async function handler(req: any, res: any) {
         if (r?.ok) await setSetting('main_channel_menu_msg', String(mid));
         return res.status(200).json({ ok: !!r?.ok, mid, via, pinnedFrom, err: r?.ok ? undefined : r });
       }
+      if (action === 'chatmenu') {
+        // Закреп-меню в чате клуба (группа общения). Без &post=1 — только проверка: какой чат, права бота.
+        const channel = (await getSetting('main_channel_id')) || '-1003268173530';
+        let chatId = String(req.query.chat || (await getSetting('club_chat_id')) || '');
+        if (!chatId) { const ch = await clubTg('getChat', { chat_id: channel }); chatId = ch?.result?.linked_chat_id ? String(ch.result.linked_chat_id) : ''; }
+        if (!chatId) return res.status(400).json({ ok: false, error: 'chat id unknown (pass &chat=-100…)' });
+        const info = await clubTg('getChat', { chat_id: chatId });
+        const me = await clubTg('getMe');
+        const memb = await clubTg('getChatMember', { chat_id: chatId, user_id: me?.result?.id });
+        if (req.query.post !== '1') return res.status(200).json({ ok: true, chatId, title: info?.result?.title, bot: memb?.result?.status, can_pin: memb?.result?.can_pin_messages });
+        const back = String(req.query.url || 'https://t.me/+noeVIrQHUsQ5NDli');
+        const sent = await clubTg('sendMessage', {
+          chat_id: chatId,
+          text: '📌 Клуб «Про Рост Онлайн»\n\nЧтобы вернуться в канал клуба — нажмите кнопку ниже 👇',
+          reply_markup: { inline_keyboard: [[{ text: '📢 Вернуться в канал клуба', url: back }]] },
+        });
+        if (!sent?.ok) return res.status(200).json({ ok: false, step: 'send', raw: sent });
+        const pin = await clubTg('pinChatMessage', { chat_id: chatId, message_id: sent.result.message_id, disable_notification: true });
+        await setSetting('club_chat_id', chatId);
+        await setSetting('club_chat_menu_msg', String(sent.result.message_id));
+        return res.status(200).json({ ok: true, chatId, message_id: sent.result.message_id, pinned: !!pin?.ok, pinRaw: pin?.ok ? undefined : pin });
+      }
       if (action === 'clubposttest') {
         // Диагностика: постит ли клуб-бот в канал. Возвращает результат Telegram.
         const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '-1003268173530');

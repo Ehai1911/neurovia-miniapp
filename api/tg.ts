@@ -71,12 +71,17 @@ export default async function handler(req: any, res: any) {
     const action = req.query?.action ? String(req.query.action) : '';
 
     // ---------- ПРОД: проверка членства в закрытом канале (клубный бот) ----------
-    // Вызывается из видеотеки (video.html), открытой через @bahitadminbot. НЕ dev-gated.
+    // Вызывается из мини-аппа клуба (video.html), открытого через @bahitadminbot
+    // или через бот-вход XL @prorost_club_bot (ACCESS_ENTRY_BOT_TOKEN). НЕ dev-gated.
     if (action === 'clubcheck') {
       if (!CLUB_TOKEN) return res.status(500).json({ ok: false, error: 'CLUB_BOT_TOKEN not set' });
       let user: any;
       try { user = getAuthedUser(req, CLUB_TOKEN); }
-      catch (e: any) { return res.status(401).json({ ok: false, error: String(e?.message || e) }); }
+      catch (e: any) {
+        const entry = process.env.ACCESS_ENTRY_BOT_TOKEN || '';
+        try { if (!entry) throw e; user = getAuthedUser(req, entry); }
+        catch (e2: any) { return res.status(401).json({ ok: false, error: String(e2?.message || e2) }); }
+      }
       const channel = (await getSetting('main_channel_id')) || '-1003268173530';
       const r = await clubTg('getChatMember', { chat_id: channel, user_id: user.id });
       const st = r?.result?.status;
@@ -88,7 +93,15 @@ export default async function handler(req: any, res: any) {
         try { sections = JSON.parse((await getSetting('club_sections')) || '[]'); } catch { sections = []; }
         if (!Array.isArray(sections) || !sections.length) sections = [{ id: 'tochka-rosta', title: 'Точка Роста', emoji: '🚀' }];
       }
-      return res.status(200).json({ ok: true, member: !!member, videos: member ? videos : [], sections: member ? sections : [] });
+      let schedule: any[] = [];
+      if (member) { try { schedule = JSON.parse((await getSetting('club_schedule')) || '[]'); } catch { schedule = []; } }
+      const links = {
+        shop: (await getSetting('shop_url')) || 'https://prorostonline.com/shop',
+        chat: (await getSetting('club_chat_url')) || 'https://t.me/+Ev7OzmOXRAhiNGJi',
+        support: 'https://t.me/bahitadminbot?start=support',
+        pay: (await getSetting('club_pay_url')) || 'https://nvl.neurovialabs.kz/light',
+      };
+      return res.status(200).json({ ok: true, member: !!member, videos: member ? videos : [], sections: member ? sections : [], schedule: Array.isArray(schedule) ? schedule : [], links });
     }
 
     // ---------- Сервисные действия (dev) ----------

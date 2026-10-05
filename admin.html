@@ -120,7 +120,7 @@
       '<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="loadCohortsList()">👥 Потоки</button></div>'+
       '<div class="row" style="margin:0 0 4px"><button class="btn" style="width:100%" onclick="openSupport()">🆘 Обращения <span id="sup-badge"></span></button></div>'+
       sect('🌱 КЛУБ «ПРО РОСТ ОНЛАЙН»')+
-      '<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="openVideos()">📺 Видеотека</button></div>'+
+      '<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="openVideos()">📚 Полезные материалы</button></div>'+
       '<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="openClubEfiry()">📅 Эфиры и рассылка</button></div>';
     el.innerHTML=h;
     apiGet('/api/admin/support').then(function(sj){ var b=document.getElementById('sup-badge'); if(b && sj && sj.ok && sj.newCount>0){ b.innerHTML='<span class="chip c-amber">'+sj.newCount+' новых</span>'; } });
@@ -370,7 +370,7 @@
   };
   window.renderVideos = function(){
     var el=document.getElementById('list');
-    var h='<button class="back" onclick="loadHome()">← в кабинет</button><h2>Видеотека</h2>'+
+    var h='<button class="back" onclick="loadHome()">← в кабинет</button><h2>Полезные материалы</h2>'+
       secPanel()+
       '<div class="muted" style="margin:14px 0 10px">Эфир = видео + (по желанию) презентация и рабочая тетрадь и раздел. Можно вставлять весь iframe или ссылку. Порядок карточек = порядок в разделе. Видят только участники клуба.</div>';
     VIDS.forEach(function(v,i){

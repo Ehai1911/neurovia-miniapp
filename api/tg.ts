@@ -39,7 +39,7 @@ async function setSetting(key: string, value: string) {
 async function clubFooterParts() {
   const chatUrl = (await getSetting('club_chat_url')) || 'https://t.me/+Ev7OzmOXRAhiNGJi';
   return [
-    { t: '📺 Видеотека', u: 'https://t.me/bahitadminbot?startapp=video' },
+    { t: '📚 Полезные материалы', u: 'https://t.me/bahitadminbot?startapp=video' },
     { t: '👥 Наш чат', u: chatUrl },
     { t: '💬 Обратная связь', u: 'https://t.me/bahitadminbot?start=support' },
   ];
@@ -53,7 +53,7 @@ async function clubMenuKeyboard() {
   return {
     inline_keyboard: [
       [
-        { text: '📺 Видеотека', url: 'https://t.me/bahitadminbot?startapp=video' },
+        { text: '📚 Полезные материалы', url: 'https://t.me/bahitadminbot?startapp=video' },
         { text: '👥 Наш чат', url: chatUrl },
       ],
       [
@@ -388,7 +388,7 @@ export default async function handler(req: any, res: any) {
         const menuMsg = Number(await getSetting('main_channel_menu_msg')) || 0;
         const base = String(isMedia ? (cp.caption || '') : (cp.text || ''));
         const baseEntities = (isMedia ? cp.caption_entities : cp.entities) || [];
-        const already = base.indexOf('📺 Видеотека') >= 0; // футер уже добавлен
+        const already = base.indexOf('📚 Полезные материалы') >= 0 || base.indexOf('📺 Видеотека') >= 0; // футер уже добавлен
         if (isContent && cp.message_id !== menuMsg && !already) {
           const parts = await clubFooterParts();
           const prefix = base ? base + '\n\n' : '';
@@ -440,7 +440,7 @@ export default async function handler(req: any, res: any) {
       if (/\bvideoteka\b/.test(text)) {
         await tg('sendMessage', {
           chat_id: chatId,
-          text: '🎬 Видеотека — записи и уроки. Откройте кнопкой ниже 👇',
+          text: '📚 Полезные материалы — записи и уроки. Откройте кнопкой ниже 👇',
           reply_markup: { inline_keyboard: [[{ text: '🎬 Открыть видеотеку', web_app: { url: base + '/video.html' } }]] },
         });
       } else if (/\bvideo\b/.test(text)) {

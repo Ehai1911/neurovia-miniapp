@@ -119,6 +119,17 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ ok: true, review_channel_id: id });
       }
       if (action === 'getme') return res.status(200).json(await tg('getMe'));
+      if (action === 'botstatus') {
+        const ch = (await getSetting('main_channel_id')) || '-1003268173530';
+        const me = await tg('getMe');
+        const cme = await clubTg('getMe');
+        return res.status(200).json({
+          ok: true, channel: ch,
+          sprint: await tg('getChatMember', { chat_id: ch, user_id: me?.result?.id }),
+          club: await clubTg('getChatMember', { chat_id: ch, user_id: cme?.result?.id }),
+          last_footer_error: await getSetting('last_footer_error'),
+        });
+      }
       if (action === 'setcommands') {
         return res.status(200).json(await tg('setMyCommands', { commands: [{ command: 'kabinet', description: 'Кабинет куратора' }] }));
       }
@@ -390,11 +401,12 @@ export default async function handler(req: any, res: any) {
           const entities = [...baseEntities, ...footerEntities];
           const limit = isMedia ? 1024 : 4096;
           if (newText.length <= limit) {
-            if (isMedia) {
-              await tg('editMessageCaption', { chat_id: cp.chat.id, message_id: cp.message_id, caption: newText, caption_entities: entities });
-            } else {
-              await tg('editMessageText', { chat_id: cp.chat.id, message_id: cp.message_id, text: newText, entities, link_preview_options: { is_disabled: true } });
-            }
+            const er = isMedia
+              ? await tg('editMessageCaption', { chat_id: cp.chat.id, message_id: cp.message_id, caption: newText, caption_entities: entities })
+              : await tg('editMessageText', { chat_id: cp.chat.id, message_id: cp.message_id, text: newText, entities, link_preview_options: { is_disabled: true } });
+            if (!er?.ok) { console.log('footer edit failed', cp.message_id, JSON.stringify(er)); await setSetting('last_footer_error', JSON.stringify({ msg: cp.message_id, at: new Date().toISOString(), er })); }
+          } else {
+            await setSetting('last_footer_error', JSON.stringify({ msg: cp.message_id, at: new Date().toISOString(), skipped: 'too long', len: newText.length }));
           }
         }
       }

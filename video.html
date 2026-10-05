@@ -214,7 +214,9 @@
       if(!j.member){ renderGate(); return; }
       ALL=Array.isArray(j.videos)?j.videos:[];
       SECTIONS=(Array.isArray(j.sections)&&j.sections.length)?j.sections:[{id:'tochka-rosta',title:'Точка Роста',emoji:'🚀'}];
-      if(_qs.get('tab')==='events'){ setTab('events'); return; }
+      // Вкладка из ссылки: t.me/bahitadminbot?startapp=events или video.html?tab=events
+      var sp=(tgw && tgw.initDataUnsafe && tgw.initDataUnsafe.start_param) || _qs.get('tab') || '';
+      if(sp==='events'){ setTab('events'); return; }
       renderHome();
     }).catch(function(){ document.getElementById('app').innerHTML='<div class="card"><p class="hint">Ошибка загрузки.</p></div>'; });
   }

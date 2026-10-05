@@ -59,13 +59,6 @@
     display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 2px}
   .tabbar button .ti{font-size:20px;line-height:1}
   .tabbar button.on{color:var(--accent);font-weight:600}
-  .ev{display:flex;gap:12px;align-items:flex-start}
-  .ev .when{flex:none;width:58px;text-align:center;background:#22344F;border-radius:10px;padding:8px 4px}
-  .ev .when b{display:block;font-size:18px}
-  .ev .when span{font-size:11.5px;color:var(--muted)}
-  .ev .info{flex:1;min-width:0}
-  .ev .info .t{font-size:15.5px;font-weight:600}
-  .ev .info .x{font-size:13px;color:var(--muted);margin-top:2px}
 </style>
 </head>
 <body>
@@ -76,7 +69,7 @@
   <div id="app"><div class="load">Загрузка…</div></div>
   <nav class="tabbar" id="tabbar">
     <button type="button" data-tab="materials" class="on"><span class="ti">📚</span>Материалы</button>
-    <button type="button" data-tab="events"><span class="ti">📅</span>Эфиры</button>
+    <button type="button" data-tab="club"><span class="ti">📢</span>В клуб</button>
     <button type="button" data-tab="shop"><span class="ti">🛍</span>Магазин</button>
     <button type="button" data-tab="chat"><span class="ti">👥</span>Чат</button>
     <button type="button" data-tab="support"><span class="ti">💬</span>Связь</button>
@@ -110,8 +103,8 @@
     b.addEventListener('click',function(){ openUrl(LINKS.pay); });
   }
 
-  var ALL=[], SECTIONS=[], CURRENT=[], GS=[], SCHED=[], MEMBER=false, LOADED=false;
-  var LINKS={ shop:'https://prorostonline.com/shop', chat:'https://t.me/+Ev7OzmOXRAhiNGJi', support:'https://t.me/bahitadminbot?start=support', pay:'https://nvl.neurovialabs.kz/light' };
+  var ALL=[], SECTIONS=[], CURRENT=[], GS=[], MEMBER=false, LOADED=false;
+  var LINKS={ shop:'https://prorostonline.com/shop', chat:'https://t.me/+Ev7OzmOXRAhiNGJi', support:'https://t.me/bahitadminbot?start=support', pay:'https://nvl.neurovialabs.kz/light', club:'https://t.me/+noeVIrQHUsQ5NDli' };
 
   // t.me — внутри Telegram, остальное — во внешнем браузере.
   function openUrl(u){
@@ -122,38 +115,15 @@
     else { window.open(u,'_blank','noopener'); }
   }
 
-  var WD=['вс','пн','вт','ср','чт','пт','сб'], MON=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
-  function renderEvents(){
-    var app=document.getElementById('app');
-    if(!MEMBER){ renderGate(); return; }
-    var today=new Date(); today.setHours(0,0,0,0);
-    var list=SCHED.filter(function(s){ return s && s.date && new Date(s.date+'T00:00:00')>=today; })
-      .sort(function(a,b){ return (a.date+(a.time||'')).localeCompare(b.date+(b.time||'')); });
-    var h='<div class="pl-title" style="margin:2px 2px 10px">Ближайшие эфиры</div>';
-    if(!list.length){ app.innerHTML=h+'<div class="card"><p class="hint">Новых эфиров пока нет — анонсы появятся здесь и в канале.</p></div>'; return; }
-    list.forEach(function(s,i){
-      var d=new Date(s.date+'T00:00:00');
-      h+='<div class="card"><div class="ev">'+
-        '<div class="when"><b>'+d.getDate()+'</b><span>'+MON[d.getMonth()]+', '+WD[d.getDay()]+'</span></div>'+
-        '<div class="info"><div class="t">'+esc(s.title||'Эфир')+'</div>'+
-        '<div class="x">'+(s.time?('🕖 '+esc(s.time)):'')+(s.expert?(' · '+esc(s.expert)):'')+'</div>'+
-        (s.zoom?('<div style="margin-top:10px"><button class="btn" type="button" data-zoom="'+i+'">Подключиться</button></div>'):'')+
-        '</div></div></div>';
-    });
-    app.innerHTML=h;
-    app.querySelectorAll('[data-zoom]').forEach(function(btn){
-      btn.addEventListener('click',function(){ openUrl(list[+btn.getAttribute('data-zoom')].zoom); });
-    });
-  }
 
   function setTab(t){
+    if(t==='club'){ openUrl(LINKS.club); return; }
     if(t==='shop'){ openUrl(LINKS.shop); return; }
     if(t==='chat'){ openUrl(LINKS.chat); return; }
     if(t==='support'){ openUrl(LINKS.support); return; }
     document.querySelectorAll('#tabbar button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-tab')===t); });
     window.scrollTo(0,0);
     if(!LOADED){ return; }
-    if(t==='events'){ renderEvents(); return; }
     if(!MEMBER){ renderGate(); return; }
     renderHome();
   }
@@ -210,13 +180,9 @@
       if(!j || !j.ok){ document.getElementById('app').innerHTML='<div class="card"><p class="hint">Не удалось загрузить. Откройте из бота ещё раз.</p></div>'; return; }
       LOADED=true; MEMBER=!!j.member;
       if(j.links){ for(var k in j.links){ if(j.links[k]) LINKS[k]=j.links[k]; } }
-      SCHED=Array.isArray(j.schedule)?j.schedule:[];
       if(!j.member){ renderGate(); return; }
       ALL=Array.isArray(j.videos)?j.videos:[];
       SECTIONS=(Array.isArray(j.sections)&&j.sections.length)?j.sections:[{id:'tochka-rosta',title:'Точка Роста',emoji:'🚀'}];
-      // Вкладка из ссылки: t.me/bahitadminbot?startapp=events или video.html?tab=events
-      var sp=(tgw && tgw.initDataUnsafe && tgw.initDataUnsafe.start_param) || _qs.get('tab') || '';
-      if(sp==='events'){ setTab('events'); return; }
       renderHome();
     }).catch(function(){ document.getElementById('app').innerHTML='<div class="card"><p class="hint">Ошибка загрузки.</p></div>'; });
   }

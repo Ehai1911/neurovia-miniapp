@@ -95,15 +95,14 @@ export default async function handler(req: any, res: any) {
         try { sections = JSON.parse((await getSetting('club_sections')) || '[]'); } catch { sections = []; }
         if (!Array.isArray(sections) || !sections.length) sections = [{ id: 'tochka-rosta', title: 'Точка Роста', emoji: '🚀' }];
       }
-      let schedule: any[] = [];
-      if (member) { try { schedule = JSON.parse((await getSetting('club_schedule')) || '[]'); } catch { schedule = []; } }
       const links = {
         shop: (await getSetting('shop_url')) || 'https://prorostonline.com/shop',
         chat: (await getSetting('club_chat_url')) || 'https://t.me/+Ev7OzmOXRAhiNGJi',
         support: 'https://t.me/bahitadminbot?start=support',
         pay: (await getSetting('club_pay_url')) || 'https://nvl.neurovialabs.kz/light',
+        club: (await getSetting('club_back_url')) || 'https://t.me/+noeVIrQHUsQ5NDli',
       };
-      return res.status(200).json({ ok: true, member: !!member, videos: member ? videos : [], sections: member ? sections : [], schedule: Array.isArray(schedule) ? schedule : [], links });
+      return res.status(200).json({ ok: true, member: !!member, videos: member ? videos : [], sections: member ? sections : [], links });
     }
 
     // ---------- Сервисные действия (dev) ----------

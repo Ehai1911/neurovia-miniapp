@@ -38,8 +38,10 @@ async function setSetting(key: string, value: string) {
 // Ссылки-разделы для подписи-футера под постами (кликабельный текст).
 async function clubFooterParts() {
   const chatUrl = (await getSetting('club_chat_url')) || 'https://t.me/+Ev7OzmOXRAhiNGJi';
+  const shopUrl = (await getSetting('shop_url')) || 'https://prorostonline.com/shop';
   return [
     { t: '📚 Полезные материалы', u: 'https://t.me/bahitadminbot?startapp=video' },
+    { t: '🛍 Магазин', u: shopUrl },
     { t: '👥 Наш чат', u: chatUrl },
     { t: '💬 Обратная связь', u: 'https://t.me/bahitadminbot?start=support' },
   ];

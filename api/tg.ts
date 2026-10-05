@@ -40,10 +40,10 @@ async function clubFooterParts() {
   const chatUrl = (await getSetting('club_chat_url')) || 'https://t.me/+Ev7OzmOXRAhiNGJi';
   const shopUrl = (await getSetting('shop_url')) || 'https://prorostonline.com/shop';
   return [
-    { t: '📚 Полезные материалы', u: 'https://t.me/bahitadminbot?startapp=video' },
+    { t: '📚 Материалы', u: 'https://t.me/bahitadminbot?startapp=video' },
     { t: '🛍 Магазин', u: shopUrl },
-    { t: '👥 Наш чат', u: chatUrl },
-    { t: '💬 Обратная связь', u: 'https://t.me/bahitadminbot?start=support' },
+    { t: '👥 Чат', u: chatUrl },
+    { t: '💬 Связь', u: 'https://t.me/bahitadminbot?start=support' },
   ];
 }
 
@@ -403,7 +403,7 @@ export default async function handler(req: any, res: any) {
         const menuMsg = Number(await getSetting('main_channel_menu_msg')) || 0;
         const base = String(isMedia ? (cp.caption || '') : (cp.text || ''));
         const baseEntities = (isMedia ? cp.caption_entities : cp.entities) || [];
-        const already = base.indexOf('📚 Полезные материалы') >= 0 || base.indexOf('📺 Видеотека') >= 0; // футер уже добавлен
+        const already = ['📚 Материалы', '📚 Полезные материалы', '📺 Видеотека'].some((m) => base.indexOf(m) >= 0); // футер уже добавлен
         if (isContent && cp.message_id !== menuMsg && !already) {
           const parts = await clubFooterParts();
           const prefix = base ? base + '\n\n' : '';

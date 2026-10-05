@@ -92,7 +92,7 @@ export default async function handler(req: any, res: any) {
           const sec = secName(String(s.section || ''));
           const t = '🔔 Сегодня' + (s.time ? (' в ' + s.time) : '') + ' — ' + String(s.title || 'эфир') +
             (s.expert ? (' · ' + s.expert) : '') + (sec ? ('\n' + sec) : '') + (s.zoom ? ('\n\n🎥 Подключиться: ' + s.zoom) : '');
-          const j = await clubTgCall('sendMessage', { chat_id: channel, text: t, disable_web_page_preview: true });
+          const j = await clubTgCall('sendMessage', { chat_id: channel, text: t, link_preview_options: { is_disabled: true } });
           if (j && j.ok) { clubPosted++; log.push(keyId); }
         }
         await supabase.from('app_settings').upsert(

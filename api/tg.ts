@@ -393,7 +393,7 @@ export default async function handler(req: any, res: any) {
             if (isMedia) {
               await tg('editMessageCaption', { chat_id: cp.chat.id, message_id: cp.message_id, caption: newText, caption_entities: entities });
             } else {
-              await tg('editMessageText', { chat_id: cp.chat.id, message_id: cp.message_id, text: newText, entities, disable_web_page_preview: true });
+              await tg('editMessageText', { chat_id: cp.chat.id, message_id: cp.message_id, text: newText, entities, link_preview_options: { is_disabled: true } });
             }
           }
         }

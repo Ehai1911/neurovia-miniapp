@@ -128,6 +128,7 @@ export default async function handler(req: any, res: any) {
           sprint: await tg('getChatMember', { chat_id: ch, user_id: me?.result?.id }),
           club: await clubTg('getChatMember', { chat_id: ch, user_id: cme?.result?.id }),
           last_footer_error: await getSetting('last_footer_error'),
+          last_channel_post: await getSetting('last_channel_post'),
         });
       }
       if (action === 'setcommands') {
@@ -380,6 +381,7 @@ export default async function handler(req: any, res: any) {
     const cp = update.channel_post;
     if (cp && cp.chat && cp.message_id) {
       const mainCh = await getSetting('main_channel_id');
+      await setSetting('last_channel_post', JSON.stringify({ chat: cp.chat.id, msg: cp.message_id, at: new Date().toISOString(), text: String(cp.text || cp.caption || '').slice(0, 40) }));
       if (mainCh && String(cp.chat.id) === String(mainCh)) {
         const isMedia = !!(cp.video || cp.photo || cp.document || cp.animation);
         const isContent = isMedia || !!(cp.text || cp.caption);

@@ -17,7 +17,8 @@
   header .sub{font-size:12px;color:var(--muted)}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:14px}
   .card h3{font-size:15.5px;margin:0 0 8px;font-weight:600}
-  .video{position:relative;padding-top:56.25%;border-radius:10px;overflow:hidden;background:#000}
+  /* Видео от края до края экрана: выходим за поля страницы (14px) и карточки (1px рамка + 12px) */
+  .video{position:relative;aspect-ratio:16/9;margin:0 -27px;overflow:hidden;background:#000}
   .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
   .tapcover{position:absolute;inset:0;z-index:2;background:transparent;border:none;padding:0;cursor:pointer}
   /* Запущенное видео: поворот телефона в альбомную → на весь экран (как на YouTube) */

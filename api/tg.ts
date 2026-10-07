@@ -73,17 +73,12 @@ export default async function handler(req: any, res: any) {
     const action = req.query?.action ? String(req.query.action) : '';
 
     // ---------- ПРОД: проверка членства в закрытом канале (клубный бот) ----------
-    // Вызывается из мини-аппа клуба (video.html), открытого через @bahitadminbot
-    // или через бот-вход XL @prorost_club_bot (ACCESS_ENTRY_BOT_TOKEN). НЕ dev-gated.
+    // Вызывается из мини-аппа клуба (video.html), открытого через @bahitadminbot. НЕ dev-gated.
     if (action === 'clubcheck') {
       if (!CLUB_TOKEN) return res.status(500).json({ ok: false, error: 'CLUB_BOT_TOKEN not set' });
       let user: any;
       try { user = getAuthedUser(req, CLUB_TOKEN); }
-      catch (e: any) {
-        const entry = process.env.ACCESS_ENTRY_BOT_TOKEN || '';
-        try { if (!entry) throw e; user = getAuthedUser(req, entry); }
-        catch (e2: any) { return res.status(401).json({ ok: false, error: String(e2?.message || e2) }); }
-      }
+      catch (e: any) { return res.status(401).json({ ok: false, error: String(e?.message || e) }); }
       const channel = (await getSetting('main_channel_id')) || '-1003268173530';
       const r = await clubTg('getChatMember', { chat_id: channel, user_id: user.id });
       const st = r?.result?.status;
@@ -143,7 +138,6 @@ export default async function handler(req: any, res: any) {
           club: await clubTg('getChatMember', { chat_id: ch, user_id: cme?.result?.id }),
           last_footer_error: await getSetting('last_footer_error'),
           last_channel_post: await getSetting('last_channel_post'),
-          entry_bot: process.env.ACCESS_ENTRY_BOT_TOKEN ? ((await (await fetch('https://api.telegram.org/bot' + process.env.ACCESS_ENTRY_BOT_TOKEN + '/getMe')).json())?.result?.username || 'invalid token') : 'not set',
         });
       }
       if (action === 'setcommands') {

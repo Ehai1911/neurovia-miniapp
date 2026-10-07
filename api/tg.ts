@@ -143,6 +143,7 @@ export default async function handler(req: any, res: any) {
           club: await clubTg('getChatMember', { chat_id: ch, user_id: cme?.result?.id }),
           last_footer_error: await getSetting('last_footer_error'),
           last_channel_post: await getSetting('last_channel_post'),
+          entry_bot: process.env.ACCESS_ENTRY_BOT_TOKEN ? ((await (await fetch('https://api.telegram.org/bot' + process.env.ACCESS_ENTRY_BOT_TOKEN + '/getMe')).json())?.result?.username || 'invalid token') : 'not set',
         });
       }
       if (action === 'setcommands') {

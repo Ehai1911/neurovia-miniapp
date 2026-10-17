@@ -493,14 +493,14 @@ export default async function handler(req: any, res: any) {
       } else if (/\bvideo\b/.test(text)) {
         await sendWithApp(chatId, 'Отлично! Прикрепите сюда ваш видеоотзыв 🎥 — просто отправьте видео в этот чат, и мы его получим.', base);
       } else {
+        // Кнопка-клавиатура (keyboard + web_app) открывает мини-апп БЕЗ initData — пользователь не определяется.
+        // Поэтому: убираем старую клавиатуру и даём кнопку в самом сообщении (inline web_app передаёт initData).
         await tg('sendMessage', {
           chat_id: chatId,
-          text: 'Здравствуйте! Добро пожаловать на интенсив «Neurovia Sprint — От интереса к оплате» 🚀\n\nЗдесь всё, что нужно для участия: расписание живых встреч, ссылки на Zoom, задания и отметка посещения.\n\nОткрывайте кнопкой «☰ Меню» внизу 👇',
-          reply_markup: {
-            keyboard: [[{ text: '☰ Меню', web_app: { url: base + '/' } }]],
-            resize_keyboard: true, is_persistent: true,
-          },
+          text: 'Здравствуйте! Добро пожаловать на интенсив «Neurovia Sprint — От интереса к оплате» 🚀\n\nЗдесь всё, что нужно для участия: расписание живых встреч, ссылки на Zoom, задания и отметка посещения.',
+          reply_markup: { remove_keyboard: true },
         });
+        await sendWithApp(chatId, 'Открывайте кнопкой ниже 👇 или кнопкой «Меню» слева от поля ввода.', base);
       }
       return res.status(200).json({ ok: true });
     }

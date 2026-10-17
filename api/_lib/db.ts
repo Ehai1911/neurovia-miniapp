@@ -1,7 +1,9 @@
 import { supabase } from './supabase';
 import type { TgUser } from './auth';
 
+// Интенсив по умолчанию — для гостя без зачисления. Зачисленный видит интенсив своего потока (cohort.course_key).
 export const COURSE_KEY = 'neurovia_sprint';
+export function courseKeyOf(enr: any): string { return enr?.cohort?.course_key || COURSE_KEY; }
 
 export async function getOrCreateUser(tg: TgUser) {
   const { data: existing } = await supabase

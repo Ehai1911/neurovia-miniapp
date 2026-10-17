@@ -118,7 +118,8 @@
     var h=(TOKEN?'<button class="logout" onclick="logout()">выйти</button>':'')+'<h2>Кабинет куратора</h2>'+
       sect('🎓 ИНТЕНСИВ «СПРИНТ»')+
       '<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="loadCohortsList()">👥 Потоки</button></div>'+
-      '<div class="row" style="margin:0 0 4px"><button class="btn" style="width:100%" onclick="openSupport()">🆘 Обращения <span id="sup-badge"></span></button></div>';
+      '<div class="row" style="margin:0 0 4px"><button class="btn" style="width:100%" onclick="openSupport()">🆘 Обращения <span id="sup-badge"></span></button></div>'+
+      '<div class="row" style="margin:0 0 4px"><button class="btn" style="width:100%" onclick="openProgram()">📝 Программа интенсива</button></div>';
     el.innerHTML=h;
     apiGet('/api/admin/support').then(function(sj){ var b=document.getElementById('sup-badge'); if(b && sj && sj.ok && sj.newCount>0){ b.innerHTML='<span class="chip c-amber">'+sj.newCount+' новых</span>'; } });
   }
@@ -318,6 +319,161 @@
     var clean=SCHED.filter(function(s){return (s.title&&s.title.trim())||(s.at&&s.at.trim());});
     var j=await apiPost('/api/admin/update-cohort',{cohort_id:CUR.id, schedule:clean});
     if(j.ok){ setStatus('sched-status','ok','✓ Сохранено'); } else { setStatus('sched-status','err',j.error||'Ошибка'); }
+  };
+
+  // ---- Конструктор интенсива: интенсивы → шаги → вопросы к заданиям ----
+  var PG={course:null, steps:[]};
+  var STEP_TYPE_NAMES={intro:'Старт', day:'Занятие', feedback:'Обратная связь', bonus:'Бонус'};
+  function pgView(){ only('cohorts'); return document.getElementById('cohorts'); }
+  function pgAuthFail(j){ if(j._status===401||j._status===403){ showLogin('Конструктор доступен куратору, вошедшему по логину и паролю.'); return true; } return false; }
+
+  window.openProgram=async function(){
+    var el=pgView(); document.getElementById('sub').textContent='программа';
+    el.innerHTML='<div class="muted">Загрузка…</div>';
+    var j=await apiGet('/api/admin/program-courses');
+    if(!j.ok){ if(!pgAuthFail(j)) el.innerHTML='<div class="err">'+esc(j.error||'Ошибка')+'</div>'; return; }
+    var h='<button class="back" onclick="loadHome()">← в кабинет</button><h2>Программа интенсивов</h2>'+
+      '<div class="muted" style="margin:0 2px 10px">Выберите интенсив, чтобы редактировать его шаги и задания.</div>';
+    j.courses.forEach(function(c){
+      h+='<div class="row" onclick="openCourse(\''+esc(c.key)+'\')"><div><div class="nm">'+esc(c.title)+'</div>'+
+        '<div class="sub">шагов: '+c.steps+' · потоков: '+c.cohorts+(c.active_cohorts?' (открыт приём: '+c.active_cohorts+')':'')+
+        ' · '+(c.open_all?'всё открыто сразу':'по порядку')+'</div></div><div class="pr">›</div></div>';
+    });
+    h+='<div class="card"><h3>Новый интенсив</h3>'+
+      '<input id="pg-new-title" class="lin" placeholder="Название, напр. «Спринт: продажи в Instagram»" maxlength="200">'+
+      '<div style="margin-top:8px"><button class="btn primary" onclick="createCourse()">+ Создать интенсив</button> <span id="pg-new-st" class="muted"></span></div></div>';
+    el.innerHTML=h;
+  };
+
+  window.createCourse=async function(){
+    var t=(document.getElementById('pg-new-title').value||'').trim();
+    if(!t){ setStatus('pg-new-st','err','Введите название'); return; }
+    setStatus('pg-new-st','wait','Создаём…');
+    var j=await apiPost('/api/admin/program-course-save',{title:t});
+    if(!j.ok){ setStatus('pg-new-st','err',j.error||'Ошибка'); return; }
+    openCourse(j.course.key);
+  };
+
+  window.openCourse=async function(key){
+    var el=pgView(); el.innerHTML='<div class="muted">Загрузка…</div>';
+    var cj=await apiGet('/api/admin/program-courses');
+    var sj=await apiGet('/api/admin/program-steps',{course:key});
+    if(!cj.ok||!sj.ok){ if(!pgAuthFail(cj.ok?sj:cj)) el.innerHTML='<div class="err">'+esc((cj.ok?sj:cj).error||'Ошибка')+'</div>'; return; }
+    PG.course=cj.courses.filter(function(c){return c.key===key;})[0]; PG.steps=sj.steps;
+    if(!PG.course){ el.innerHTML='<div class="err">Интенсив не найден</div>'; return; }
+    document.getElementById('sub').textContent=PG.course.title;
+    var c=PG.course;
+    var h='<button class="back" onclick="openProgram()">← ко всем интенсивам</button><h2>'+esc(c.title)+'</h2>'+
+      '<div class="card"><h3>Настройки интенсива</h3>'+
+      '<input id="pg-title" class="lin" value="'+esc(c.title)+'" maxlength="200">'+
+      '<label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px"><input type="checkbox" id="pg-open" '+(c.open_all?'checked':'')+'> Открыть ученикам все шаги сразу</label>'+
+      '<div class="muted" style="margin:4px 0 0 24px">Если выключено: занятия открываются по порядку (следующее — после задания предыдущего), обратная связь и бонус — после всех занятий.</div>'+
+      '<div style="margin-top:10px"><button class="btn primary" onclick="saveCourse()">Сохранить настройки</button> <span id="pg-c-st" class="muted"></span></div></div>'+
+      '<h2>Шаги программы</h2>';
+    if(!PG.steps.length) h+='<div class="muted" style="margin:0 2px 10px">Шагов пока нет — добавьте первый.</div>';
+    PG.steps.forEach(function(s,i){
+      h+='<div class="row" style="cursor:default"><div style="display:flex;flex-direction:column;gap:2px">'+
+        '<button class="btn" style="padding:2px 8px" '+(i===0?'disabled':'')+' onclick="moveStep('+i+',-1)">↑</button>'+
+        '<button class="btn" style="padding:2px 8px" '+(i===PG.steps.length-1?'disabled':'')+' onclick="moveStep('+i+',1)">↓</button></div>'+
+        '<div style="flex:1;cursor:pointer" onclick="editStep('+i+')"><div class="nm">'+esc(s.title)+'</div>'+
+        '<div class="sub">'+esc(STEP_TYPE_NAMES[s.type]||s.type)+(s.has_tasks?' · задание':'')+(s.questions.length?' · вопросов: '+s.questions.length:'')+
+        (s.code_word?' · кодовое слово':'')+(s.student_data?' · <span class="chip c-amber">есть данные учеников</span>':'')+'</div></div>'+
+        '<div class="pr" style="cursor:pointer" onclick="editStep('+i+')">✎</div></div>';
+    });
+    h+='<div class="row" style="margin-top:4px"><button class="btn primary" style="width:100%" onclick="editStep(-1)">+ Добавить шаг</button></div>'+
+      '<div id="pg-order-st" class="muted"></div>'+
+      '<div class="card" style="margin-top:14px"><h3>Новый поток этого интенсива</h3>'+
+      '<input id="pg-coh-title" class="lin" placeholder="Название потока, напр. «Поток 4»" maxlength="200">'+
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px"><label>Старт <input type="date" id="pg-coh-s" style="padding:6px"></label><label>Конец <input type="date" id="pg-coh-e" style="padding:6px"></label></div>'+
+      '<div style="margin-top:8px"><button class="btn" onclick="createCohort()">+ Создать поток</button> <span id="pg-coh-st" class="muted"></span></div>'+
+      '<div class="muted" style="margin-top:6px">Расписание встреч, Zoom и приём потока настраиваются в «Потоках».</div></div>';
+    el.innerHTML=h;
+  };
+
+  window.saveCourse=async function(){
+    setStatus('pg-c-st','wait','Сохраняем…');
+    var j=await apiPost('/api/admin/program-course-save',{key:PG.course.key, title:document.getElementById('pg-title').value, open_all:document.getElementById('pg-open').checked});
+    if(!j.ok){ setStatus('pg-c-st','err',j.error||'Ошибка'); return; }
+    PG.course.title=j.course.title; PG.course.open_all=j.course.open_all; setStatus('pg-c-st','ok','✓ Сохранено');
+  };
+
+  window.moveStep=async function(i,d){
+    var j=i+d; if(j<0||j>=PG.steps.length) return;
+    var t=PG.steps[i]; PG.steps[i]=PG.steps[j]; PG.steps[j]=t;
+    var r=await apiPost('/api/admin/program-steps-order',{course_key:PG.course.key, ids:PG.steps.map(function(s){return s.id;})});
+    if(!r.ok){ alert(r.error||'Не удалось сохранить порядок'); }
+    openCourse(PG.course.key);
+  };
+
+  window.createCohort=async function(){
+    var t=(document.getElementById('pg-coh-title').value||'').trim();
+    if(!t){ setStatus('pg-coh-st','err','Введите название потока'); return; }
+    setStatus('pg-coh-st','wait','Создаём…');
+    var j=await apiPost('/api/admin/program-cohort-create',{course_key:PG.course.key, title:t, starts_on:document.getElementById('pg-coh-s').value, ends_on:document.getElementById('pg-coh-e').value});
+    if(!j.ok){ setStatus('pg-coh-st','err',j.error||'Ошибка'); return; }
+    setStatus('pg-coh-st','ok','✓ Поток «'+j.cohort.title+'» создан — он есть в «Потоках»');
+  };
+
+  var PQ=[]; // вопросы редактируемого шага
+  window.editStep=function(i){
+    var s=i>=0?PG.steps[i]:{type:'day', title:'', description:'', code_word:'', tetrad_url:'', video_url:'', quiz_url:'', has_tasks:true, questions:[], student_data:0};
+    PQ=(s.questions||[]).map(function(q){return {id:q.id, text:q.text, has_answers:q.has_answers};});
+    var el=pgView();
+    var opt=function(v){ return '<option value="'+v+'" '+(s.type===v?'selected':'')+'>'+STEP_TYPE_NAMES[v]+'</option>'; };
+    var fld=function(id,label,val,ph){ return '<div style="margin-top:10px"><div class="muted">'+label+'</div><input id="'+id+'" class="lin" value="'+esc(val||'')+'" placeholder="'+esc(ph||'')+'"></div>'; };
+    el.innerHTML='<button class="back" onclick="openCourse(\''+esc(PG.course.key)+'\')">← к шагам</button><h2>'+(i>=0?'Шаг':'Новый шаг')+'</h2>'+
+      '<div class="card">'+
+      '<div class="muted">Тип шага</div><select id="ps-type" class="lin">'+opt('intro')+opt('day')+opt('feedback')+opt('bonus')+'</select>'+
+      fld('ps-title','Название','' + (s.title||''),'напр. «День 1. Клиентский сценарий»')+
+      '<div style="margin-top:10px"><div class="muted">Описание для ученика</div><textarea id="ps-desc" class="lin" style="min-height:120px">'+esc(s.description||'')+'</textarea></div>'+
+      fld('ps-video','Ссылка на видео',s.video_url,'https://…')+
+      fld('ps-tetrad','Ссылка на рабочую тетрадь / презентацию',s.tetrad_url,'https://…')+
+      fld('ps-quiz','Ссылка на тест',s.quiz_url,'https://…')+
+      fld('ps-code','Кодовое слово для отметки посещения (пусто — без отметки)',s.code_word,'напр. «старт»')+
+      '<label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:14px"><input type="checkbox" id="ps-tasks" '+(s.has_tasks?'checked':'')+'> В шаге есть задание (ученик отвечает на вопросы ниже)</label>'+
+      '</div><h2>Вопросы задания</h2><div id="pq-list"></div>'+
+      '<div class="row"><button class="btn" style="width:100%" onclick="addQ()">+ Добавить вопрос</button></div>'+
+      '<div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn primary" onclick="saveStep(\''+(s.id||'')+'\')">💾 Сохранить шаг</button>'+
+      (i>=0?'<button class="btn" onclick="deleteStep(\''+s.id+'\','+(s.student_data||0)+')">Удалить шаг</button>':'')+
+      ' <span id="ps-st" class="muted"></span></div>'+
+      (s.student_data?'<div class="muted">По этому шагу уже есть данные учеников ('+s.student_data+') — его можно менять, но не удалить.</div>':'');
+    renderQ();
+  };
+
+  function renderQ(){
+    var box=document.getElementById('pq-list'); if(!box) return;
+    if(!PQ.length){ box.innerHTML='<div class="muted" style="margin:0 2px 8px">Вопросов нет.</div>'; return; }
+    box.innerHTML=PQ.map(function(q,i){
+      return '<div class="card" style="padding:10px"><div style="display:flex;gap:6px;align-items:flex-start">'+
+        '<div style="display:flex;flex-direction:column;gap:2px"><button class="btn" style="padding:2px 8px" '+(i===0?'disabled':'')+' onclick="moveQ('+i+',-1)">↑</button><button class="btn" style="padding:2px 8px" '+(i===PQ.length-1?'disabled':'')+' onclick="moveQ('+i+',1)">↓</button></div>'+
+        '<textarea class="lin" style="min-height:56px;flex:1" oninput="PQ['+i+'].text=this.value" placeholder="Текст вопроса">'+esc(q.text)+'</textarea>'+
+        (q.has_answers?'<span class="chip c-amber" title="На вопрос уже отвечали — удалить нельзя">ответы</span>':'<button class="btn" onclick="delQ('+i+')">✕</button>')+
+        '</div></div>';
+    }).join('');
+  }
+  window.addQ=function(){ PQ.push({text:''}); renderQ(); };
+  window.delQ=function(i){ PQ.splice(i,1); renderQ(); };
+  window.moveQ=function(i,d){ var j=i+d; if(j<0||j>=PQ.length) return; var t=PQ[i]; PQ[i]=PQ[j]; PQ[j]=t; renderQ(); };
+
+  window.saveStep=async function(id){
+    var v=function(x){ return (document.getElementById(x).value||'').trim(); };
+    var body={id:id||undefined, course_key:PG.course.key, type:v('ps-type'), title:v('ps-title'), description:document.getElementById('ps-desc').value,
+      video_url:v('ps-video'), tetrad_url:v('ps-tetrad'), quiz_url:v('ps-quiz'), code_word:v('ps-code'),
+      has_tasks:document.getElementById('ps-tasks').checked,
+      questions:PQ.filter(function(q){return (q.text||'').trim();}).map(function(q){return {id:q.id, text:q.text};})};
+    setStatus('ps-st','wait','Сохраняем…');
+    var j=await apiPost('/api/admin/program-step-save',body);
+    if(!j.ok){ setStatus('ps-st','err',j.error||'Ошибка'); return; }
+    setStatus('ps-st','ok','✓ Сохранено');
+    setTimeout(function(){ openCourse(PG.course.key); }, 500);
+  };
+
+  window.deleteStep=async function(id,data){
+    if(data){ alert('По этому шагу уже есть данные учеников — удалить нельзя.'); return; }
+    if(!confirm('Удалить шаг вместе с его вопросами? Это нельзя отменить.')) return;
+    var j=await apiPost('/api/admin/program-step-delete',{id:id});
+    if(!j.ok){ setStatus('ps-st','err',j.error||'Ошибка'); return; }
+    openCourse(PG.course.key);
   };
 
   // Точка входа: есть токен/dev/Telegram → в кабинет; иначе — форма логина.

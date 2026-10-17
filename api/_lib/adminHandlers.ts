@@ -46,8 +46,8 @@ export async function participants(req: any, res: any) {
     if (!cohortId) return res.status(400).json({ ok: false, error: 'cohort_id required' });
     if (!scopeAllows(scope, cohortId)) return res.status(403).json({ ok: false, error: 'no access to cohort' });
 
-    const { data: cohort } = await supabase.from('cohorts').select('id,title').eq('id', cohortId).maybeSingle();
-    const { data: days } = await supabase.from('steps').select('id').eq('course_key', COURSE_KEY).eq('type', 'day');
+    const { data: cohort } = await supabase.from('cohorts').select('id,title,course_key').eq('id', cohortId).maybeSingle();
+    const { data: days } = await supabase.from('steps').select('id').eq('course_key', cohort?.course_key || COURSE_KEY).eq('type', 'day');
     const dayIds = new Set((days || []).map((d: any) => d.id));
     const dayCount = dayIds.size;
 
@@ -95,13 +95,13 @@ export async function participant(req: any, res: any) {
     if (!targetId) return res.status(400).json({ ok: false, error: 'enrollment_id required' });
 
     const { data: target } = await supabase.from('enrollments')
-      .select('id, cohort_id, role, bonus_course, user:users(first_name,last_name,username,telegram_user_id)')
+      .select('id, cohort_id, role, bonus_course, cohort:cohorts(course_key), user:users(first_name,last_name,username,telegram_user_id)')
       .eq('id', targetId).maybeSingle();
     if (!target || !scopeAllows(scope, target.cohort_id)) return res.status(403).json({ ok: false, error: 'no access' });
 
     const { data: steps } = await supabase.from('steps')
       .select('id, type, position, title, step_questions(id, position, text)')
-      .eq('course_key', COURSE_KEY).order('position');
+      .eq('course_key', (target as any).cohort?.course_key || COURSE_KEY).order('position');
     const [att, tasks, answers, fb] = await Promise.all([
       supabase.from('attendance').select('step_id, attended').eq('enrollment_id', targetId),
       supabase.from('task_submissions').select('step_id, completed, reviewed, review_comment').eq('enrollment_id', targetId),

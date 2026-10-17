@@ -1,21 +1,22 @@
 import { getAuthedUser } from './_lib/auth';
-import { getOrCreateUser, ensureEnrollment, COURSE_KEY, displayName } from './_lib/db';
+import { getOrCreateUser, ensureEnrollment, courseKeyOf, displayName } from './_lib/db';
 import { supabase } from './_lib/supabase';
 
-// ⚠️ ВРЕМЕННО ДЛЯ ТЕСТА: все дни/бонус/обратная связь открыты.
-// Чтобы закрыть замочки обратно — поставить false (одна строка).
-const OPEN_ALL = true;
 
 export default async function handler(req: any, res: any) {
   try {
     const tg = getAuthedUser(req);
     const user = await getOrCreateUser(tg);
     const enr = await ensureEnrollment(user.id);
+    const courseKey = courseKeyOf(enr);
+    // Порядок открытия шагов — настройка интенсива в конструкторе (open_all: всё сразу / по порядку)
+    const { data: course } = await supabase.from('courses').select('open_all').eq('key', courseKey).maybeSingle();
+    const openAll = course ? !!course.open_all : true;
 
     const { data: steps, error } = await supabase
       .from('steps')
       .select('*, step_questions(*)')
-      .eq('course_key', COURSE_KEY)
+      .eq('course_key', courseKey)
       .order('position');
     if (error) throw error;
 
@@ -52,7 +53,7 @@ export default async function handler(req: any, res: any) {
       if (!enr) {
         // Гость (не оплатил): открыт только Старт, остальное под замком.
         available = (s.type === 'intro');
-      } else if (!OPEN_ALL) {
+      } else if (!openAll) {
         if (s.type === 'day') available = prevDone;
         else if (s.type === 'feedback') available = allDaysDone;
         else if (s.type === 'bonus') available = allDaysDone;

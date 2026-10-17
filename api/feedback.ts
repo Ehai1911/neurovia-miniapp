@@ -1,5 +1,5 @@
 import { getAuthedUser } from './_lib/auth';
-import { getOrCreateUser, ensureEnrollment, COURSE_KEY } from './_lib/db';
+import { getOrCreateUser, ensureEnrollment, courseKeyOf } from './_lib/db';
 import { supabase } from './_lib/supabase';
 
 // POST { kind?: 'text'|'video', video_url? } — отзыв (обратная связь).
@@ -19,7 +19,7 @@ export default async function handler(req: any, res: any) {
     }, { onConflict: 'enrollment_id' });
 
     // Проверяем: все ли учебные дни выполнены → открыт ли бонус за финиш
-    const { data: days } = await supabase.from('steps').select('id').eq('course_key', COURSE_KEY).eq('type', 'day');
+    const { data: days } = await supabase.from('steps').select('id').eq('course_key', courseKeyOf(enr)).eq('type', 'day');
     const dayIds = (days || []).map((d: any) => d.id);
     const { data: doneRows } = await supabase.from('task_submissions')
       .select('step_id').eq('enrollment_id', enr.id).eq('completed', true).in('step_id', dayIds);

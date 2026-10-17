@@ -2,7 +2,7 @@ import { resolveAdmin } from './adminAccess';
 import { scopeAllows, COURSE_KEY, displayName } from './db';
 import { supabase } from './supabase';
 import { verifyPassword, signToken, hashPassword } from './adminAuth';
-import { tgCall, clubTgCall } from './bot';
+import { tgCall } from './bot';
 
 // ---------- POST login ----------
 export async function login(req: any, res: any) {
@@ -15,21 +15,6 @@ export async function login(req: any, res: any) {
     if (!acc || !verifyPassword(password, acc.pass)) return res.status(401).json({ ok: false, error: 'Неверный логин или пароль.' });
     const token = signToken({ sub: acc.id, login: acc.login, is_admin: acc.is_admin, name: acc.name });
     return res.status(200).json({ ok: true, token, name: acc.name || acc.login });
-  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
-}
-
-// ---------- GET/POST seed-curator (dev only) ----------
-export async function seedCurator(req: any, res: any) {
-  if (process.env.ALLOW_DEV_AUTH !== '1') return res.status(403).json({ ok: false, error: 'disabled' });
-  try {
-    const lg = String(req.query?.login || req.body?.login || 'curator').trim().toLowerCase();
-    const password = String(req.query?.password || req.body?.password || 'test123');
-    const name = String(req.query?.name || req.body?.name || 'Kurator');
-    const pass = hashPassword(password);
-    const { data, error } = await supabase.from('curator_accounts')
-      .upsert({ login: lg, pass, name, is_admin: true }, { onConflict: 'login' }).select('login, name').single();
-    if (error) return res.status(500).json({ ok: false, error: error.message });
-    return res.status(200).json({ ok: true, account: data });
   } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
 }
 
@@ -278,147 +263,3 @@ export async function updateCohort(req: any, res: any) {
   } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
 }
 
-// Достаёт чистую embed-ссылку из вставленного iframe/URL (убирает query — параметры добавим сами).
-function extractEmbed(raw: string): string {
-  let s = String(raw || '').trim();
-  const m = s.match(/src\s*=\s*["']([^"']+)["']/i);
-  if (m) s = m[1];
-  s = s.split('?')[0].split('#')[0];
-  return s.trim();
-}
-
-// Ссылка на файл (презентация/тетрадь): из iframe/ссылки, но query сохраняем (нужен для Slides/PDF).
-function extractUrl(raw: string): string {
-  let s = String(raw || '').trim();
-  const m = s.match(/href\s*=\s*["']([^"']+)["']/i) || s.match(/src\s*=\s*["']([^"']+)["']/i);
-  if (m) s = m[1];
-  return s.trim();
-}
-
-// ===== Клубные эфиры (расписание + рассылка в канал) =====
-async function getSet(key: string): Promise<string | null> {
-  const { data } = await supabase.from('app_settings').select('value').eq('key', key).maybeSingle();
-  return data?.value ?? null;
-}
-
-// GET club-schedule-list
-export async function clubScheduleList(req: any, res: any) {
-  try {
-    const { scope } = await resolveAdmin(req);
-    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
-    let list: any[] = [];
-    try { list = JSON.parse((await getSet('club_schedule')) || '[]'); } catch { list = []; }
-    return res.status(200).json({ ok: true, schedule: Array.isArray(list) ? list : [] });
-  } catch (e: any) { return res.status(401).json({ ok: false, error: String(e?.message || e) }); }
-}
-
-// POST club-schedule-save { schedule:[{date,time,title,expert,zoom}] }
-export async function clubScheduleSave(req: any, res: any) {
-  try {
-    const { scope } = await resolveAdmin(req);
-    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
-    const raw = Array.isArray(req.body?.schedule) ? req.body.schedule : [];
-    const clean = raw
-      .map((s: any) => ({
-        date: String(s?.date || '').slice(0, 10),
-        time: String(s?.time || '').slice(0, 5),
-        title: String(s?.title || '').slice(0, 200),
-        expert: String(s?.expert || '').slice(0, 120),
-        zoom: String(s?.zoom || '').slice(0, 500),
-        section: String(s?.section || '').slice(0, 40),
-      }))
-      .filter((s: any) => s.date && s.title)
-      .sort((a: any, b: any) => (a.date + (a.time || '') < b.date + (b.time || '') ? -1 : 1));
-    await supabase.from('app_settings').upsert(
-      { key: 'club_schedule', value: JSON.stringify(clean), updated_at: new Date().toISOString() },
-      { onConflict: 'key' });
-    return res.status(200).json({ ok: true, schedule: clean });
-  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
-}
-
-// POST club-post { text } → публикует сообщение в канал клуба
-export async function clubPost(req: any, res: any) {
-  try {
-    const { scope } = await resolveAdmin(req);
-    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
-    const text = String(req.body?.text || '').trim();
-    if (!text) return res.status(400).json({ ok: false, error: 'Пустое сообщение.' });
-    const channel = await getSet('main_channel_id');
-    if (!channel) return res.status(400).json({ ok: false, error: 'Канал не настроен.' });
-    // Постим клуб-ботом (@bahitadminbot) — он админ канала. Спринт-бот в канал не пишет.
-    const j = await clubTgCall('sendMessage', { chat_id: channel, text, disable_web_page_preview: true });
-    if (!j || !j.ok) return res.status(200).json({ ok: false, error: 'Не удалось опубликовать: ' + (j?.description || 'бот не админ канала?') });
-    return res.status(200).json({ ok: true });
-  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
-}
-
-// Разделы видеотеки по умолчанию (первый — «Точка Роста», в него уедут старые видео).
-export const DEFAULT_SECTIONS = [{ id: 'tochka-rosta', title: 'Точка Роста', emoji: '🚀' }];
-
-function sectionId(s: any): string {
-  const raw = String(s?.id || '').trim().slice(0, 40);
-  return raw || ('s' + Math.random().toString(36).slice(2, 8));
-}
-
-// ---------- GET sections-list ----------
-export async function sectionsList(req: any, res: any) {
-  try {
-    const { scope } = await resolveAdmin(req);
-    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
-    let list: any[] = [];
-    try { list = JSON.parse((await getSet('club_sections')) || '[]'); } catch { list = []; }
-    if (!Array.isArray(list) || !list.length) list = DEFAULT_SECTIONS;
-    return res.status(200).json({ ok: true, sections: list });
-  } catch (e: any) { return res.status(401).json({ ok: false, error: String(e?.message || e) }); }
-}
-
-// ---------- POST sections-save { sections:[{id,title,emoji}] } ----------
-export async function sectionsSave(req: any, res: any) {
-  try {
-    const { scope } = await resolveAdmin(req);
-    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
-    const raw = Array.isArray(req.body?.sections) ? req.body.sections : [];
-    const clean = raw
-      .map((s: any) => ({ id: sectionId(s), title: String(s?.title || '').slice(0, 80), emoji: String(s?.emoji || '').slice(0, 8) }))
-      .filter((s: any) => s.title);
-    const final = clean.length ? clean : DEFAULT_SECTIONS;
-    await supabase.from('app_settings').upsert(
-      { key: 'club_sections', value: JSON.stringify(final), updated_at: new Date().toISOString() },
-      { onConflict: 'key' });
-    return res.status(200).json({ ok: true, sections: final });
-  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
-}
-
-// ---------- GET videos-list ----------
-export async function videosList(req: any, res: any) {
-  try {
-    const { scope } = await resolveAdmin(req);
-    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
-    const { data } = await supabase.from('app_settings').select('value').eq('key', 'videos').maybeSingle();
-    let list: any[] = [];
-    try { list = JSON.parse(data?.value || '[]'); } catch { list = []; }
-    return res.status(200).json({ ok: true, videos: Array.isArray(list) ? list : [] });
-  } catch (e: any) { return res.status(401).json({ ok: false, error: String(e?.message || e) }); }
-}
-
-// ---------- POST videos-save { videos:[{title, embed}] } ----------
-export async function videosSave(req: any, res: any) {
-  try {
-    const { scope } = await resolveAdmin(req);
-    if (scope.none) return res.status(403).json({ ok: false, error: 'not a curator' });
-    const raw = Array.isArray(req.body?.videos) ? req.body.videos : [];
-    const clean = raw
-      .map((v: any) => ({
-        title: String(v?.title || '').slice(0, 200),
-        embed: extractEmbed(v?.embed).slice(0, 500),
-        presentation: extractUrl(v?.presentation).slice(0, 500),
-        workbook: extractUrl(v?.workbook).slice(0, 500),
-        section: String(v?.section || '').slice(0, 40),
-      }))
-      .filter((v: any) => v.embed);
-    await supabase.from('app_settings').upsert(
-      { key: 'videos', value: JSON.stringify(clean), updated_at: new Date().toISOString() },
-      { onConflict: 'key' });
-    return res.status(200).json({ ok: true, videos: clean });
-  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
-}

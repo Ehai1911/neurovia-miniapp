@@ -12,15 +12,6 @@ export async function tgCall(method: string, payload?: any) {
 }
 
 // Вызов API клуб-ботом (@bahitadminbot) — он админ канала клуба, им и постим в канал.
-export async function clubTgCall(method: string, payload?: any) {
-  const r = await fetch(`https://api.telegram.org/bot${CLUB_TOKEN}/${method}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload || {}),
-  });
-  return r.json();
-}
-
 // Клавиатура: сначала доп. кнопки (напр. Zoom), затем всегда «🚀 Открыть спринт» (мини-апп).
 export function appKeyboard(base: string, extraRows?: any[]) {
   const rows: any[] = [];

@@ -1,19 +1,10 @@
 import { supabase } from './_lib/supabase';
 import { getOrCreateUser, getActiveEnrollment, displayName } from './_lib/db';
 import { sendWithApp } from './_lib/bot';
-import { getAuthedUser } from './_lib/auth';
-
-const CLUB_TOKEN = process.env.CLUB_BOT_TOKEN || '';
-async function clubTg(method: string, payload?: any) {
-  const r = await fetch(`https://api.telegram.org/bot${CLUB_TOKEN}/${method}`, {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload || {}),
-  });
-  return r.json();
-}
 
 // Единый эндпоинт бота (экономим лимит функций Vercel):
 //  • POST  — приём апдейтов Telegram (webhook): /start и видеоотзывы.
-//  • GET ?action=… — сервисные действия настройки (только при ALLOW_DEV_AUTH=1).
+//  • GET ?action=… — отключено (403): настройка бота делается скриптами на сервере.
 // Видео от студента → копируется в приватный канал «Видеоотзывы» + запись в БД.
 
 const TOKEN = process.env.BOT_TOKEN || '';
@@ -31,40 +22,6 @@ async function getSetting(key: string): Promise<string | null> {
   const { data } = await supabase.from('app_settings').select('value').eq('key', key).maybeSingle();
   return data?.value ?? null;
 }
-async function setSetting(key: string, value: string) {
-  await supabase.from('app_settings').upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
-}
-
-// Ссылки-разделы для подписи-футера под постами (кликабельный текст).
-async function clubFooterParts() {
-  const chatUrl = (await getSetting('club_chat_url')) || 'https://t.me/+Ev7OzmOXRAhiNGJi';
-  const shopUrl = (await getSetting('shop_url')) || 'https://prorostonline.com/shop';
-  return [
-    { t: '📚 Материалы', u: 'https://t.me/bahitadminbot?startapp=video' },
-    { t: '🛍 Магазин', u: shopUrl },
-    { t: '👥 Чат', u: chatUrl },
-    { t: '💬 Связь', u: 'https://t.me/bahitadminbot?start=support' },
-  ];
-}
-
-// Единая клавиатура-меню клуба (используется и в закрепе, и под каждым постом).
-async function clubMenuKeyboard() {
-  const shopReady = (await getSetting('shop_ready')) === '1';
-  const shop = (await getSetting('shop_url')) || (await getSetting('shop_soon_url')) || 'https://t.me/neurovia_sprint_bot';
-  const chatUrl = (await getSetting('club_chat_url')) || 'https://t.me/+Ev7OzmOXRAhiNGJi';
-  return {
-    inline_keyboard: [
-      [
-        { text: '📚 Полезные материалы', url: 'https://t.me/bahitadminbot?startapp=video' },
-        { text: '👥 Наш чат', url: chatUrl },
-      ],
-      [
-        shopReady ? { text: '🛍 Магазин', url: shop } : { text: '🛍 Магазин (скоро)', url: shop },
-        { text: '💬 Обратная связь', url: 'https://t.me/bahitadminbot?start=support' },
-      ],
-    ],
-  };
-}
 
 export default async function handler(req: any, res: any) {
   try {
@@ -72,348 +29,12 @@ export default async function handler(req: any, res: any) {
 
     const action = req.query?.action ? String(req.query.action) : '';
 
-    // ---------- ПРОД: проверка членства в закрытом канале (клубный бот) ----------
-    // Вызывается из мини-аппа клуба (video.html), открытого через @bahitadminbot. НЕ dev-gated.
-    if (action === 'clubcheck') {
-      if (!CLUB_TOKEN) return res.status(500).json({ ok: false, error: 'CLUB_BOT_TOKEN not set' });
-      let user: any;
-      try { user = getAuthedUser(req, CLUB_TOKEN); }
-      catch (e: any) { return res.status(401).json({ ok: false, error: String(e?.message || e) }); }
-      const channel = (await getSetting('main_channel_id')) || '-1003268173530';
-      const r = await clubTg('getChatMember', { chat_id: channel, user_id: user.id });
-      const st = r?.result?.status;
-      const member = st === 'creator' || st === 'administrator' || st === 'member' || (st === 'restricted' && !!r.result?.is_member);
-      let videos: any[] = [];
-      let sections: any[] = [];
-      if (member) {
-        try { videos = JSON.parse((await getSetting('videos')) || '[]'); } catch { videos = []; }
-        try { sections = JSON.parse((await getSetting('club_sections')) || '[]'); } catch { sections = []; }
-        if (!Array.isArray(sections) || !sections.length) sections = [{ id: 'tochka-rosta', title: 'Точка Роста', emoji: '🚀' }];
-      }
-      const links = {
-        shop: (await getSetting('shop_url')) || 'https://prorostonline.com/shop',
-        chat: (await getSetting('club_chat_url')) || 'https://t.me/+Ev7OzmOXRAhiNGJi',
-        support: 'https://t.me/bahitadminbot?start=support',
-        pay: (await getSetting('club_pay_url')) || 'https://nvl.neurovialabs.kz/light',
-        club: (await getSetting('club_back_url')) || 'https://t.me/+noeVIrQHUsQ5NDli',
-      };
-      return res.status(200).json({ ok: true, member: !!member, videos: member ? videos : [], sections: member ? sections : [], links });
-    }
-
-    // ---------- Сервисные действия (dev) ----------
-    if (action) {
-      if (process.env.ALLOW_DEV_AUTH !== '1') return res.status(403).json({ ok: false, error: 'disabled' });
-      if (action === 'clubgetme') return res.status(200).json(await clubTg('getMe'));
-      if (action === 'clubmenubutton') {
-        if (req.query.reset === '1') {
-          return res.status(200).json(await clubTg('setChatMenuButton', { menu_button: { type: 'default' } }));
-        }
-        const h = req.headers['x-forwarded-host'] || req.headers['host'];
-        const url = String(req.query.url || ('https://' + h + '/video.html'));
-        const btnText = String(req.query.text || '🚀 Точка Рост');
-        return res.status(200).json(await clubTg('setChatMenuButton', {
-          menu_button: { type: 'web_app', text: btnText, web_app: { url } },
-        }));
-      }
-      const host = req.headers['x-forwarded-host'] || req.headers['host'];
-      const base = `https://${host}`;
-      if (action === 'getwebhookinfo') return res.status(200).json(await tg('getWebhookInfo'));
-      if (action === 'deletewebhook') return res.status(200).json(await tg('deleteWebhook', {}));
-      if (action === 'getupdates') return res.status(200).json(await tg('getUpdates', { allowed_updates: ['message', 'channel_post', 'my_chat_member'] }));
-      if (action === 'getchannel') return res.status(200).json({ ok: true, review_channel_id: await getSetting('review_channel_id') });
-      if (action === 'setchannel') {
-        const id = String(req.query.id || '');
-        if (!id) return res.status(400).json({ ok: false, error: 'id required' });
-        await setSetting('review_channel_id', id);
-        return res.status(200).json({ ok: true, review_channel_id: id });
-      }
-      if (action === 'getme') return res.status(200).json(await tg('getMe'));
-      if (action === 'botstatus') {
-        const ch = (await getSetting('main_channel_id')) || '-1003268173530';
-        const me = await tg('getMe');
-        const cme = await clubTg('getMe');
-        return res.status(200).json({
-          ok: true, channel: ch,
-          sprint: await tg('getChatMember', { chat_id: ch, user_id: me?.result?.id }),
-          club: await clubTg('getChatMember', { chat_id: ch, user_id: cme?.result?.id }),
-          last_footer_error: await getSetting('last_footer_error'),
-          last_channel_post: await getSetting('last_channel_post'),
-        });
-      }
-      if (action === 'setcommands') {
-        return res.status(200).json(await tg('setMyCommands', { commands: [{ command: 'kabinet', description: 'Кабинет куратора' }] }));
-      }
-      if (action === 'testpost') {
-        const id = await getSetting('review_channel_id');
-        if (!id) return res.status(400).json({ ok: false, error: 'review_channel_id not set' });
-        return res.status(200).json(await tg('sendMessage', { chat_id: id, text: '✅ Тест: бот может писать в канал «Видеоотзывы».' }));
-      }
-      if (action === 'postmenu' || action === 'editmenu') {
-        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
-        const text = '📌 Меню\n\nВыбирайте по кнопкам ниже 👇';
-        const keyboard = await clubMenuKeyboard();
-        if (action === 'editmenu') {
-          const mid = Number(req.query.message_id || (await getSetting('main_channel_menu_msg')) || 0);
-          if (!mid) return res.status(400).json({ ok: false, error: 'message_id not known' });
-          const edited = await tg('editMessageText', { chat_id: channel, message_id: mid, text, reply_markup: keyboard });
-          return res.status(200).json({ ok: !!edited?.ok, edited });
-        }
-        const sent = await tg('sendMessage', { chat_id: channel, text, reply_markup: keyboard });
-        let pinned: any = null;
-        const mid = sent?.result?.message_id;
-        if (sent?.ok && mid) {
-          pinned = await tg('pinChatMessage', { chat_id: channel, message_id: mid, disable_notification: true });
-          await setSetting('main_channel_id', channel);
-          await setSetting('main_channel_menu_msg', String(mid));
-        }
-        return res.status(200).json({ ok: !!sent?.ok, sent, pinned });
-      }
-      if (action === 'setsetting') {
-        const key = String(req.query.key || '');
-        const value = String(req.query.value || '');
-        if (!key) return res.status(400).json({ ok: false, error: 'key required' });
-        await setSetting(key, value);
-        return res.status(200).json({ ok: true, key, value });
-      }
-      if (action === 'getsetting') {
-        const key = String(req.query.key || '');
-        return res.status(200).json({ ok: true, key, value: await getSetting(key) });
-      }
-      if (action === 'setmenubutton') {
-        const url = String(req.query.url || base + '/');
-        const btnText = String(req.query.text || '🎓 Обучение');
-        return res.status(200).json(await tg('setChatMenuButton', {
-          menu_button: { type: 'web_app', text: btnText, web_app: { url } },
-        }));
-      }
-      if (action === 'addmenubtn') {
-        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
-        const mid = Number(req.query.message_id || 0);
-        if (!mid) return res.status(400).json({ ok: false, error: 'message_id required' });
-        return res.status(200).json(await tg('editMessageReplyMarkup', {
-          chat_id: channel, message_id: mid, reply_markup: await clubMenuKeyboard(),
-        }));
-      }
-      if (action === 'stripbtns') {
-        // Снять инлайн-кнопки с постов канала. ?message_id=N или ?from=A&to=B (диапазон).
-        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
-        const from = Number(req.query.from || req.query.message_id || 0);
-        const to = Number(req.query.to || req.query.message_id || from);
-        if (!from) return res.status(400).json({ ok: false, error: 'message_id or from/to required' });
-        const done: any[] = [];
-        for (let mid = from; mid <= to; mid++) {
-          const r = await tg('editMessageReplyMarkup', { chat_id: channel, message_id: mid, reply_markup: { inline_keyboard: [] } });
-          done.push({ mid, ok: !!(r && r.ok), err: r && r.ok ? undefined : (r && r.description) });
-        }
-        return res.status(200).json({ ok: true, done });
-      }
-      if (action === 'refreshmenu') {
-        // Переиздать кнопки на закреплённом меню канала (после смены подписей).
-        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '-1003268173530');
-        let mid = Number(req.query.message_id || (await getSetting('main_channel_menu_msg')) || 0);
-        let pinnedFrom: any = null;
-        if (!mid) {
-          const ch = await clubTg('getChat', { chat_id: channel });
-          mid = Number(ch?.result?.pinned_message?.message_id || 0);
-          pinnedFrom = ch?.result?.pinned_message?.from?.id || null;
-        }
-        if (!mid) return res.status(400).json({ ok: false, error: 'pinned menu not found' });
-        const kb = await clubMenuKeyboard();
-        let via = 'sprint';
-        let r = await tg('editMessageReplyMarkup', { chat_id: channel, message_id: mid, reply_markup: kb });
-        if (!r?.ok) { via = 'club'; r = await clubTg('editMessageReplyMarkup', { chat_id: channel, message_id: mid, reply_markup: kb }); }
-        if (r?.ok) await setSetting('main_channel_menu_msg', String(mid));
-        return res.status(200).json({ ok: !!r?.ok, mid, via, pinnedFrom, err: r?.ok ? undefined : r });
-      }
-      if (action === 'chatmenu') {
-        // Закреп-меню в чате клуба (группа общения). Без &post=1 — только проверка: какой чат, права бота.
-        const channel = (await getSetting('main_channel_id')) || '-1003268173530';
-        let chatId = String(req.query.chat || (await getSetting('club_chat_id')) || '');
-        if (!chatId) { const ch = await clubTg('getChat', { chat_id: channel }); chatId = ch?.result?.linked_chat_id ? String(ch.result.linked_chat_id) : ''; }
-        if (!chatId) return res.status(400).json({ ok: false, error: 'chat id unknown (pass &chat=-100…)' });
-        const info = await clubTg('getChat', { chat_id: chatId });
-        const me = await clubTg('getMe');
-        const memb = await clubTg('getChatMember', { chat_id: chatId, user_id: me?.result?.id });
-        if (req.query.post !== '1') return res.status(200).json({ ok: true, chatId, title: info?.result?.title, bot: memb?.result?.status, can_pin: memb?.result?.can_pin_messages });
-        const back = String(req.query.url || 'https://t.me/+noeVIrQHUsQ5NDli');
-        const sent = await clubTg('sendMessage', {
-          chat_id: chatId,
-          text: '📌 Клуб «Про Рост Онлайн»\n\nЧтобы вернуться в канал клуба — нажмите кнопку ниже 👇',
-          reply_markup: { inline_keyboard: [[{ text: '📢 Вернуться в канал клуба', url: back }]] },
-        });
-        if (!sent?.ok) return res.status(200).json({ ok: false, step: 'send', raw: sent });
-        const pin = await clubTg('pinChatMessage', { chat_id: chatId, message_id: sent.result.message_id, disable_notification: true });
-        await setSetting('club_chat_id', chatId);
-        await setSetting('club_chat_menu_msg', String(sent.result.message_id));
-        return res.status(200).json({ ok: true, chatId, message_id: sent.result.message_id, pinned: !!pin?.ok, pinRaw: pin?.ok ? undefined : pin });
-      }
-      if (action === 'clubposttest') {
-        // Диагностика: постит ли клуб-бот в канал. Возвращает результат Telegram.
-        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '-1003268173530');
-        const r = await clubTg('sendMessage', { chat_id: channel, text: 'тест публикации (клуб-бот)' });
-        return res.status(200).json({ ok: !!r?.ok, message_id: r?.result?.message_id, raw: r?.ok ? undefined : r });
-      }
-      if (action === 'channelinvite') {
-        // Создать/получить инвайт-ссылку приватного канала (клуб-бот админ) и сохранить.
-        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '-1003268173530');
-        let link = '';
-        let r = await clubTg('createChatInviteLink', { chat_id: channel, name: 'Точка Роста · возврат в канал' });
-        if (r?.ok) link = r.result?.invite_link || '';
-        if (!link) { r = await clubTg('exportChatInviteLink', { chat_id: channel }); if (r?.ok) link = r.result || ''; }
-        if (link) await setSetting('channel_invite_url', link);
-        return res.status(200).json({ ok: !!link, link, raw: link ? undefined : r });
-      }
-      if (action === 'learnpost') {
-        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
-        const appLink = 'https://t.me/neurovia_sprint_bot?startapp';
-        const sent = await tg('sendMessage', {
-          chat_id: channel,
-          text: '🎓 Обучение — интенсив «От интереса к оплате»\n\n3 дня практики: как довести клиента от первого касания до оплаты. Расписание, задания и бонусы — внутри.\n\nОткрывай кнопкой ниже 👇',
-          reply_markup: { inline_keyboard: [[{ text: '🎓 Открыть обучение', url: appLink }]] },
-        });
-        let pinned: any = null;
-        const mid = sent?.result?.message_id;
-        if (sent?.ok && mid) {
-          pinned = await tg('pinChatMessage', { chat_id: channel, message_id: mid, disable_notification: true });
-          await setSetting('learn_post_msg', String(mid));
-        }
-        return res.status(200).json({ ok: !!sent?.ok, message_id: mid, sent, pinned });
-      }
-      if (action === 'shopsoon') {
-        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
-        const sent = await tg('sendMessage', {
-          chat_id: channel,
-          text: '🛍 Магазин материалов\n\nОткрытие совсем скоро 🔜\nСледите за анонсами в канале.',
-        });
-        const mid = sent?.result?.message_id;
-        if (sent?.ok && mid) await setSetting('shop_soon_url', 'https://t.me/c/3268173530/' + mid);
-        return res.status(200).json({ ok: !!sent?.ok, message_id: mid, sent });
-      }
-      if (action === 'deletepost') {
-        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
-        const mid = Number(req.query.message_id || 0);
-        if (!mid) return res.status(400).json({ ok: false, error: 'message_id required' });
-        return res.status(200).json(await tg('deleteMessage', { chat_id: channel, message_id: mid }));
-      }
-      if (action === 'videoindex') {
-        const channel = String(req.query.channel || (await getSetting('main_channel_id')) || '@prorostonline');
-        const link = (n: number) => 'https://t.me/c/3268173530/' + n;
-        const sent = await tg('sendMessage', {
-          chat_id: channel,
-          text: '📹 Записи встреч\n\nВыбери день 👇',
-          reply_markup: {
-            inline_keyboard: [[
-              { text: '🎬 День 1', url: link(18) },
-              { text: '🎬 День 2', url: link(19) },
-              { text: '🎬 День 3', url: link(20) },
-            ]],
-          },
-        });
-        const mid = sent?.result?.message_id;
-        if (sent?.ok && mid) await setSetting('video_index_msg', String(mid));
-        return res.status(200).json({ ok: !!sent?.ok, message_id: mid, post: channel + '/' + mid, sent });
-      }
-      if (action === 'setwebhook') {
-        const secret = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 40);
-        await setSetting('tg_webhook_secret', secret);
-        const url = base + '/api/tg';
-        return res.status(200).json(await tg('setWebhook', { url, secret_token: secret, allowed_updates: ['message', 'channel_post', 'my_chat_member'] }));
-      }
-      if (action === 'clubsetwebhook') {
-        const secret = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 40);
-        await setSetting('club_webhook_secret', secret);
-        const url = base + '/api/tg?bot=club';
-        return res.status(200).json(await clubTg('setWebhook', { url, secret_token: secret, allowed_updates: ['message'] }));
-      }
-      return res.status(400).json({ ok: false, error: 'unknown action: ' + action });
-    }
+    // Сервисные GET-действия убраны: настройка бота (вебхук, меню) — скриптами на сервере.
+    if (action) return res.status(403).json({ ok: false, error: "disabled" });
 
     // ---------- Приём апдейтов Telegram ----------
     if (req.method !== 'POST') return res.status(200).json({ ok: true, note: 'tg webhook alive' });
 
-    // ----- Вебхук КЛУБНОГО бота (@bahitadminbot): видеотека + поддержка -----
-    if (req.query?.bot === 'club') {
-      const cs = await getSetting('club_webhook_secret');
-      if (cs && req.headers['x-telegram-bot-api-secret-token'] !== cs) return res.status(401).json({ ok: false, error: 'bad secret' });
-      const u = req.body || {};
-      const m = u.message;
-      if (!m || !m.chat) return res.status(200).json({ ok: true });
-      const t = (typeof m.text === 'string') ? m.text.trim() : '';
-      const supportGroup = await getSetting('support_group_id');
-
-      // --- В ГРУППЕ поддержки ---
-      if (m.chat.type === 'group' || m.chat.type === 'supergroup') {
-        // Настройка группы: /setsupport → запомнить эту группу как группу поддержки
-        if (t === '/setsupport' || t.startsWith('/setsupport@')) {
-          await setSetting('support_group_id', String(m.chat.id));
-          await clubTg('sendMessage', { chat_id: m.chat.id, text: '✅ Эта группа теперь — поддержка клуба. Отвечайте reply на вопросы участников.' });
-          return res.status(200).json({ ok: true });
-        }
-        // Чат клуба: /clubmenu → бот ставит и закрепляет кнопку «Вернуться в канал клуба»
-        if (t === '/clubmenu' || t.startsWith('/clubmenu@')) {
-          const back = (await getSetting('club_back_url')) || 'https://t.me/+noeVIrQHUsQ5NDli';
-          const sent = await clubTg('sendMessage', {
-            chat_id: m.chat.id,
-            text: '📌 Клуб «Про Рост Онлайн»\n\nЧтобы вернуться в канал клуба — нажмите кнопку ниже 👇',
-            reply_markup: { inline_keyboard: [[{ text: '📢 Вернуться в канал клуба', url: back }]] },
-          });
-          if (sent?.ok) {
-            await clubTg('pinChatMessage', { chat_id: m.chat.id, message_id: sent.result.message_id, disable_notification: true });
-            await setSetting('club_chat_id', String(m.chat.id));
-            await setSetting('club_chat_menu_msg', String(sent.result.message_id));
-          }
-          await clubTg('deleteMessage', { chat_id: m.chat.id, message_id: m.message_id });
-          return res.status(200).json({ ok: true });
-        }
-        // Ответ куратора: reply на сообщение бота с #id → отправить пользователю
-        if (supportGroup && String(m.chat.id) === String(supportGroup) && m.reply_to_message) {
-          const src = (m.reply_to_message.text || m.reply_to_message.caption || '');
-          const mm = src.match(/#(\d{4,})/);
-          const reply = m.text || m.caption || '';
-          if (mm && reply) {
-            const sent = await clubTg('sendMessage', { chat_id: Number(mm[1]), text: '💬 Ответ от куратора:\n\n' + reply });
-            await clubTg('sendMessage', { chat_id: m.chat.id, reply_to_message_id: m.message_id, text: sent?.ok ? '✅ Отправлено участнику.' : '⚠️ Не удалось отправить (участник не открывал бота).' });
-          }
-        }
-        return res.status(200).json({ ok: true });
-      }
-
-      // --- ЛИЧКА с ботом ---
-      if (m.chat.type === 'private') {
-        if (t.startsWith('/start')) {
-          // Приветствие/приглашение — разовое. Кто уже видел, тому на повторный /start ничего не шлём.
-          const uid = m.from?.id ? String(m.from.id) : '';
-          let seen: string[] = [];
-          try { seen = JSON.parse((await getSetting('club_started_users')) || '[]'); } catch { seen = []; }
-          if (uid && seen.indexOf(uid) >= 0) return res.status(200).json({ ok: true });
-          const channelUrl = (await getSetting('channel_invite_url')) || (await getSetting('club_chat_url')) || 'https://t.me/+Ev7OzmOXRAhiNGJi';
-          const backKb = { inline_keyboard: [[{ text: '↩️ Вернуться в канал', url: channelUrl }]] };
-          const text = /\bsupport\b/.test(t)
-            ? '💬 Обратная связь клуба «Про Рост Онлайн».\n\nНапишите ваш вопрос прямо сюда — куратор ответит здесь же.'
-            : '👋 Это бот обратной связи клуба «Про Рост Онлайн».\n\nНапишите вопрос куратору прямо сюда — ответ придёт в этот чат.';
-          await clubTg('sendMessage', { chat_id: m.chat.id, text, reply_markup: backKb });
-          if (uid) { seen.push(uid); await setSetting('club_started_users', JSON.stringify(seen.slice(-5000))); }
-          return res.status(200).json({ ok: true });
-        }
-        // Любое сообщение → в группу поддержки (с пометкой #id для ответа)
-        if (supportGroup) {
-          const from = m.from || {};
-          const name = [from.first_name, from.last_name].filter(Boolean).join(' ') || from.username || 'Участник';
-          const head = '👤 ' + name + (from.username ? (' (@' + from.username + ')') : '') + ' #' + from.id;
-          if (m.text) {
-            await clubTg('sendMessage', { chat_id: supportGroup, text: head + '\n\n' + m.text });
-          } else {
-            await clubTg('copyMessage', { chat_id: supportGroup, from_chat_id: m.chat.id, message_id: m.message_id, caption: head });
-          }
-          await clubTg('sendMessage', { chat_id: m.chat.id, text: '✅ Ваш вопрос отправлен куратору. Ответ придёт сюда.' });
-        } else {
-          await clubTg('sendMessage', { chat_id: m.chat.id, text: 'Поддержка скоро будет подключена. Напишите позже 🙏' });
-        }
-        return res.status(200).json({ ok: true });
-      }
-
-      return res.status(200).json({ ok: true });
-    }
 
     // Проверка секрета вебхука (Telegram шлёт заголовок).
     const secret = await getSetting('tg_webhook_secret');
@@ -423,44 +44,8 @@ export default async function handler(req: any, res: any) {
 
     const update = req.body || {};
 
-    // Авто-футер под каждым новым постом канала: кликабельные ТЕКСТОВЫЕ ссылки на разделы
-    // (Точка Роста / Наш чат / Обратная связь). Кнопки не добавляем — только ссылки в конце поста.
-    const cp = update.channel_post;
-    if (cp && cp.chat && cp.message_id) {
-      const mainCh = await getSetting('main_channel_id');
-      await setSetting('last_channel_post', JSON.stringify({ chat: cp.chat.id, msg: cp.message_id, at: new Date().toISOString(), text: String(cp.text || cp.caption || '').slice(0, 40) }));
-      if (mainCh && String(cp.chat.id) === String(mainCh)) {
-        const isMedia = !!(cp.video || cp.photo || cp.document || cp.animation);
-        const isContent = isMedia || !!(cp.text || cp.caption);
-        const menuMsg = Number(await getSetting('main_channel_menu_msg')) || 0;
-        const base = String(isMedia ? (cp.caption || '') : (cp.text || ''));
-        const baseEntities = (isMedia ? cp.caption_entities : cp.entities) || [];
-        const already = ['📚 Материалы', '📚 Полезные материалы', '📺 Видеотека'].some((m) => base.indexOf(m) >= 0); // футер уже добавлен
-        if (isContent && cp.message_id !== menuMsg && !already) {
-          const parts = await clubFooterParts();
-          const prefix = base ? base + '\n\n' : '';
-          const sep = '   ';
-          let footer = '';
-          const footerEntities: any[] = [];
-          parts.forEach((p, i) => {
-            footerEntities.push({ type: 'text_link', offset: prefix.length + footer.length, length: p.t.length, url: p.u });
-            footer += p.t + (i < parts.length - 1 ? sep : '');
-          });
-          const newText = prefix + footer;
-          const entities = [...baseEntities, ...footerEntities];
-          const limit = isMedia ? 1024 : 4096;
-          if (newText.length <= limit) {
-            const er = isMedia
-              ? await tg('editMessageCaption', { chat_id: cp.chat.id, message_id: cp.message_id, caption: newText, caption_entities: entities })
-              : await tg('editMessageText', { chat_id: cp.chat.id, message_id: cp.message_id, text: newText, entities, link_preview_options: { is_disabled: true } });
-            if (!er?.ok) { console.log('footer edit failed', cp.message_id, JSON.stringify(er)); await setSetting('last_footer_error', JSON.stringify({ msg: cp.message_id, at: new Date().toISOString(), er })); }
-          } else {
-            await setSetting('last_footer_error', JSON.stringify({ msg: cp.message_id, at: new Date().toISOString(), skipped: 'too long', len: newText.length }));
-          }
-        }
-      }
-      return res.status(200).json({ ok: true });
-    }
+    // Посты каналов боту Спринта не нужны: ссылки под постами канала клуба — забота клуб-бота.
+    if (update.channel_post) return res.status(200).json({ ok: true });
 
     const msg = update.message;
     if (!msg) return res.status(200).json({ ok: true }); // прочие апдейты — игнор
@@ -484,13 +69,7 @@ export default async function handler(req: any, res: any) {
 
     // /start → приглашение прислать видео (по deep-link ?start=video) или приветствие
     if (text.startsWith('/start')) {
-      if (/\bvideoteka\b/.test(text)) {
-        await tg('sendMessage', {
-          chat_id: chatId,
-          text: '📚 Полезные материалы — записи и уроки. Откройте кнопкой ниже 👇',
-          reply_markup: { inline_keyboard: [[{ text: '🎬 Открыть видеотеку', web_app: { url: base + '/video.html' } }]] },
-        });
-      } else if (/\bvideo\b/.test(text)) {
+      if (/\bvideo\b/.test(text)) {
         await sendWithApp(chatId, 'Отлично! Прикрепите сюда ваш видеоотзыв 🎥 — просто отправьте видео в этот чат, и мы его получим.', base);
       } else {
         // Кнопка-клавиатура (keyboard + web_app) открывает мини-апп БЕЗ initData — пользователь не определяется.

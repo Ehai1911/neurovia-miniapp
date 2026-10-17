@@ -420,6 +420,16 @@ export default async function handler(req: any, res: any) {
 
       // --- ЛИЧКА с ботом ---
       if (m.chat.type === 'private') {
+        // /kabinet → кнопка-вход в кабинет клуба (видеотека, эфиры). Вход — по логину и паролю куратора.
+        if (t.startsWith('/kabinet')) {
+          const host = req.headers['x-forwarded-host'] || req.headers['host'];
+          await clubTg('sendMessage', {
+            chat_id: m.chat.id,
+            text: '🎛 Кабинет клуба «Про Рост Онлайн»: видеотека, эфиры и рассылка.\nОткройте кнопкой ниже и войдите по логину и паролю куратора.',
+            reply_markup: { inline_keyboard: [[{ text: '🎛 Открыть кабинет клуба', web_app: { url: 'https://' + host + '/admin.html' } }]] },
+          });
+          return res.status(200).json({ ok: true });
+        }
         if (t.startsWith('/start')) {
           // Приветствие/приглашение — разовое. Кто уже видел, тому на повторный /start ничего не шлём.
           const uid = m.from?.id ? String(m.from.id) : '';

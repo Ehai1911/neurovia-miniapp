@@ -66,6 +66,42 @@ async function clubMenuKeyboard() {
   };
 }
 
+
+// Футер под новым постом канала клуба: кликабельные текстовые ссылки на разделы клуба.
+// Правит пост клуб-бот (@bahitadminbot) — он админ канала с правом редактировать сообщения.
+async function addChannelFooter(cp: any) {
+  await setSetting('last_channel_post', JSON.stringify({ chat: cp.chat.id, msg: cp.message_id, at: new Date().toISOString(), text: String(cp.text || cp.caption || '').slice(0, 40) }));
+  const mainCh = await getSetting('main_channel_id');
+  if (!mainCh || String(cp.chat.id) !== String(mainCh)) return;
+  const isMedia = !!(cp.video || cp.photo || cp.document || cp.animation);
+  const isContent = isMedia || !!(cp.text || cp.caption);
+  const menuMsg = Number(await getSetting('main_channel_menu_msg')) || 0;
+  const base = String(isMedia ? (cp.caption || '') : (cp.text || ''));
+  const baseEntities = (isMedia ? cp.caption_entities : cp.entities) || [];
+  const already = ['📚 Материалы', '📚 Полезные материалы', '📺 Видеотека'].some((m) => base.indexOf(m) >= 0); // футер уже добавлен
+  if (!isContent || cp.message_id === menuMsg || already) return;
+  const parts = await clubFooterParts();
+  const prefix = base ? base + '\n\n' : '';
+  const sep = '   ';
+  let footer = '';
+  const footerEntities: any[] = [];
+  parts.forEach((p, i) => {
+    footerEntities.push({ type: 'text_link', offset: prefix.length + footer.length, length: p.t.length, url: p.u });
+    footer += p.t + (i < parts.length - 1 ? sep : '');
+  });
+  const newText = prefix + footer;
+  const entities = [...baseEntities, ...footerEntities];
+  const limit = isMedia ? 1024 : 4096;
+  if (newText.length > limit) {
+    await setSetting('last_footer_error', JSON.stringify({ msg: cp.message_id, at: new Date().toISOString(), skipped: 'too long', len: newText.length }));
+    return;
+  }
+  const er = isMedia
+    ? await clubTg('editMessageCaption', { chat_id: cp.chat.id, message_id: cp.message_id, caption: newText, caption_entities: entities })
+    : await clubTg('editMessageText', { chat_id: cp.chat.id, message_id: cp.message_id, text: newText, entities, link_preview_options: { is_disabled: true } });
+  if (!er?.ok) { console.log('footer edit failed', cp.message_id, JSON.stringify(er)); await setSetting('last_footer_error', JSON.stringify({ msg: cp.message_id, at: new Date().toISOString(), er })); }
+}
+
 export default async function handler(req: any, res: any) {
   try {
     if (!TOKEN) return res.status(500).json({ ok: false, error: 'BOT_TOKEN not set' });
@@ -336,6 +372,10 @@ export default async function handler(req: any, res: any) {
       const cs = await getSetting('club_webhook_secret');
       if (cs && req.headers['x-telegram-bot-api-secret-token'] !== cs) return res.status(401).json({ ok: false, error: 'bad secret' });
       const u = req.body || {};
+      if (u.channel_post && u.channel_post.chat && u.channel_post.message_id) {
+        await addChannelFooter(u.channel_post);
+        return res.status(200).json({ ok: true });
+      }
       const m = u.message;
       if (!m || !m.chat) return res.status(200).json({ ok: true });
       const t = (typeof m.text === 'string') ? m.text.trim() : '';
@@ -423,44 +463,8 @@ export default async function handler(req: any, res: any) {
 
     const update = req.body || {};
 
-    // Авто-футер под каждым новым постом канала: кликабельные ТЕКСТОВЫЕ ссылки на разделы
-    // (Точка Роста / Наш чат / Обратная связь). Кнопки не добавляем — только ссылки в конце поста.
-    const cp = update.channel_post;
-    if (cp && cp.chat && cp.message_id) {
-      const mainCh = await getSetting('main_channel_id');
-      await setSetting('last_channel_post', JSON.stringify({ chat: cp.chat.id, msg: cp.message_id, at: new Date().toISOString(), text: String(cp.text || cp.caption || '').slice(0, 40) }));
-      if (mainCh && String(cp.chat.id) === String(mainCh)) {
-        const isMedia = !!(cp.video || cp.photo || cp.document || cp.animation);
-        const isContent = isMedia || !!(cp.text || cp.caption);
-        const menuMsg = Number(await getSetting('main_channel_menu_msg')) || 0;
-        const base = String(isMedia ? (cp.caption || '') : (cp.text || ''));
-        const baseEntities = (isMedia ? cp.caption_entities : cp.entities) || [];
-        const already = ['📚 Материалы', '📚 Полезные материалы', '📺 Видеотека'].some((m) => base.indexOf(m) >= 0); // футер уже добавлен
-        if (isContent && cp.message_id !== menuMsg && !already) {
-          const parts = await clubFooterParts();
-          const prefix = base ? base + '\n\n' : '';
-          const sep = '   ';
-          let footer = '';
-          const footerEntities: any[] = [];
-          parts.forEach((p, i) => {
-            footerEntities.push({ type: 'text_link', offset: prefix.length + footer.length, length: p.t.length, url: p.u });
-            footer += p.t + (i < parts.length - 1 ? sep : '');
-          });
-          const newText = prefix + footer;
-          const entities = [...baseEntities, ...footerEntities];
-          const limit = isMedia ? 1024 : 4096;
-          if (newText.length <= limit) {
-            const er = isMedia
-              ? await tg('editMessageCaption', { chat_id: cp.chat.id, message_id: cp.message_id, caption: newText, caption_entities: entities })
-              : await tg('editMessageText', { chat_id: cp.chat.id, message_id: cp.message_id, text: newText, entities, link_preview_options: { is_disabled: true } });
-            if (!er?.ok) { console.log('footer edit failed', cp.message_id, JSON.stringify(er)); await setSetting('last_footer_error', JSON.stringify({ msg: cp.message_id, at: new Date().toISOString(), er })); }
-          } else {
-            await setSetting('last_footer_error', JSON.stringify({ msg: cp.message_id, at: new Date().toISOString(), skipped: 'too long', len: newText.length }));
-          }
-        }
-      }
-      return res.status(200).json({ ok: true });
-    }
+    // Посты канала теперь обрабатывает клуб-бот (@bahitadminbot), см. клубный вебхук выше.
+    if (update.channel_post) return res.status(200).json({ ok: true });
 
     const msg = update.message;
     if (!msg) return res.status(200).json({ ok: true }); // прочие апдейты — игнор

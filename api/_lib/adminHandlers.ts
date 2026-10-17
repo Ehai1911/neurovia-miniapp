@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { resolveAdmin } from './adminAccess';
 import { scopeAllows, COURSE_KEY, displayName } from './db';
 import { supabase } from './supabase';
@@ -349,6 +350,34 @@ export async function clubPost(req: any, res: any) {
     const j = await clubTgCall('sendMessage', { chat_id: channel, text, disable_web_page_preview: true });
     if (!j || !j.ok) return res.status(200).json({ ok: false, error: 'Не удалось опубликовать: ' + (j?.description || 'бот не админ канала?') });
     return res.status(200).json({ ok: true });
+  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
+}
+
+// POST club-setup → клуб-бот (@bahitadminbot) начинает получать посты канала (для ссылок под постами).
+// Ставит вебхук клуб-бота на этот же сервер (/api/tg?bot=club) с новым секретом и allowed_updates
+// message + channel_post; проверяет, что бот — админ канала с правом редактировать сообщения.
+export async function clubSetup(req: any, res: any) {
+  try {
+    const { scope } = await resolveAdmin(req);
+    if (!scope?.global) return res.status(403).json({ ok: false, error: 'только куратор-администратор' });
+    const host = req.headers['x-forwarded-host'] || req.headers['host'];
+    const url = 'https://' + host + '/api/tg?bot=club';
+    const old = await getSet('club_webhook_secret');
+    const secret = randomBytes(20).toString('hex');
+    const save = (v: string | null) => supabase.from('app_settings')
+      .upsert({ key: 'club_webhook_secret', value: v || '', updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    await save(secret);
+    const wh = await clubTgCall('setWebhook', { url, secret_token: secret, allowed_updates: ['message', 'channel_post'] });
+    if (!wh?.ok) { await save(old); return res.status(200).json({ ok: false, error: 'setWebhook: ' + (wh?.description || 'ошибка') }); }
+    const me = await clubTgCall('getMe');
+    const channel = await getSet('main_channel_id');
+    let canEdit: boolean | null = null, status = '';
+    if (channel && me?.result?.id) {
+      const cm = await clubTgCall('getChatMember', { chat_id: channel, user_id: me.result.id });
+      status = cm?.result?.status || (cm?.description || '');
+      canEdit = status === 'creator' || (status === 'administrator' && !!cm?.result?.can_edit_messages);
+    }
+    return res.status(200).json({ ok: true, bot: me?.result?.username || '', webhook: url, channel_status: status, can_edit_messages: canEdit });
   } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
 }
 

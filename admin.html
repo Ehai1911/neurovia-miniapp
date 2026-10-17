@@ -121,7 +121,8 @@
       '<div class="row" style="margin:0 0 4px"><button class="btn" style="width:100%" onclick="openSupport()">🆘 Обращения <span id="sup-badge"></span></button></div>'+
       sect('🌱 КЛУБ «ПРО РОСТ ОНЛАЙН»')+
       '<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="openVideos()">📚 Полезные материалы</button></div>'+
-      '<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="openClubEfiry()">📅 Эфиры и рассылка</button></div>';
+      '<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="openClubEfiry()">📅 Эфиры и рассылка</button></div>'+
+      '<div class="row" style="margin:0 0 8px"><button class="btn" style="width:100%" onclick="clubSetup()">🔧 Подключить ссылки под постами канала</button></div><div id="club-setup-status" class="muted" style="font-size:13px"></div>';
     el.innerHTML=h;
     apiGet('/api/admin/support').then(function(sj){ var b=document.getElementById('sup-badge'); if(b && sj && sj.ok && sj.newCount>0){ b.innerHTML='<span class="chip c-amber">'+sj.newCount+' новых</span>'; } });
   }
@@ -484,6 +485,14 @@
     setStatus('cef-post-status','wait','Публикуем…');
     var j=await apiPost('/api/admin/club-post',{text:txt});
     if(j.ok){ if(ta) ta.value=''; setStatus('cef-post-status','ok','✓ Отправлено в канал'); } else setStatus('cef-post-status','err',j.error||'Ошибка');
+  };
+
+  window.clubSetup=async function(){
+    var el=document.getElementById('club-setup-status'); if(el) el.textContent='Настраиваем…';
+    var j=await apiPost('/api/admin/club-setup',{});
+    if(!el) return;
+    if(!j.ok){ el.textContent='Ошибка: '+(j.error||''); return; }
+    el.textContent='✓ @'+j.bot+' получает посты канала. Статус в канале: '+j.channel_status+(j.can_edit_messages?' — право редактировать есть ✓':' — НЕТ права «Редактировать сообщения»: дайте его боту в настройках канала');
   };
 
   // Точка входа: есть токен/dev/Telegram → в кабинет; иначе — форма логина.
